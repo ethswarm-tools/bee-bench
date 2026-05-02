@@ -1,5 +1,7 @@
 # bee-bench
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Cross-client benchmark suite for the three Swarm Bee API clients living as siblings:
 
 - `bee-js/` — `@ethersphere/bee-js` v12.1.0
@@ -9,9 +11,10 @@ Cross-client benchmark suite for the three Swarm Bee API clients living as sibli
 All three runners hit the same local Bee node, run the same case set defined in `bench-spec.json`, and emit JSON results that the aggregator turns into a markdown report and an interactive HTML chart page.
 
 **Where to read the results:**
+- **[Live HTML report](https://ethswarm-tools.github.io/bee-bench/results/report.html)** — interactive Chart.js view, served from GitHub Pages (no clone needed)
 - [`results/INDEX.md`](results/INDEX.md) — landing page, links into everything else
 - [`results/report.md`](results/report.md) — auto-generated numerical report
-- [`results/report.html`](results/report.html) — same data, interactive
+- [`results/report.html`](results/report.html) — same data, interactive (raw source)
 - [`FINDINGS.md`](FINDINGS.md) — qualitative observations (F1–F21)
 
 > ## ⚠ MB/s numbers are NOT Swarm-network throughput

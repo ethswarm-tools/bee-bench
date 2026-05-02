@@ -14,8 +14,9 @@ Cross-client benchmark of three Swarm Bee API clients: **bee-go**, **bee-rs**, *
 
 | Doc | What's inside |
 |---|---|
+| **[Live HTML report](https://ethswarm-tools.github.io/bee-bench/results/report.html)** | Interactive Chart.js view served from GitHub Pages — open directly in a browser. |
 | **[Latest report (markdown)](report.md)** | Auto-generated per-case tables, scoreboard, sparklines, latency-vs-size linear fits. The numerical truth. |
-| **[Latest report (HTML)](report.html)** | Same data, interactive Chart.js bars/lines. Open in a browser. |
+| **[Latest report (HTML)](report.html)** | Same as the live report above, but the raw HTML file in this repo. |
 | **[FINDINGS](../FINDINGS.md)** | Hand-written qualitative observations (F1–F21) — what the numbers actually mean, where the gaps come from, what to investigate. |
 | **[README](../README.md)** | How to run the bench, env vars, layout. |
 | **[bench-spec.json](../bench-spec.json)** | Source of truth for cases, sizes, iter counts. |
