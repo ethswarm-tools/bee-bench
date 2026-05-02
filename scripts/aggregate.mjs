@@ -214,6 +214,34 @@ function rangePercent(iters) {
   return (half / med) * 100; // ±X%
 }
 
+function stddev(iters) {
+  if (!iters || iters.length < 2) return null;
+  const mean = iters.reduce((s, v) => s + v, 0) / iters.length;
+  const variance = iters.reduce((s, v) => s + (v - mean) * (v - mean), 0) / (iters.length - 1);
+  return Math.sqrt(variance);
+}
+
+function cvPct(iters) {
+  if (!iters || iters.length < 2) return null;
+  const mean = iters.reduce((s, v) => s + v, 0) / iters.length;
+  if (mean === 0) return null;
+  const sd = stddev(iters);
+  if (sd == null) return null;
+  return (sd / mean) * 100;
+}
+
+// Linear-interpolated quantile (q ∈ [0,1]). For n=5 we'll mostly land near
+// max for p95/p99, so emit only when n >= 10 — otherwise it's noise.
+function quantile(iters, q) {
+  if (!iters || iters.length < 10) return null;
+  const s = [...iters].sort((a, b) => a - b);
+  const pos = (s.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) return s[lo];
+  return s[lo] + (s[hi] - s[lo]) * (pos - lo);
+}
+
 // Inline sparkline of iters_ms as a tiny SVG polyline. Reveals JIT warmup
 // (iter 0 high then settle), GC pauses (one outlier), Sepolia variance.
 function sparkline(iters, color) {
@@ -453,12 +481,18 @@ function formatCell(caseId, row, runner, bestMs) {
   if (perUnit) parts2.push(perUnit);
   const line2 = parts2.length ? parts2.join(' · ') : null;
 
-  // line 3: variance + rss (variance gets ⚠ if > 50% — flaky)
+  // line 3: variance + rss (variance gets ⚠ if > 50% — flaky).
+  // Show CV (stddev/mean) alongside ±range for cases with enough iters,
+  // and p95 when n ≥ 10.
   const parts3 = [];
   if (range != null) {
     const flag = range > 50 ? '⚠ ' : '';
     parts3.push(`${flag}±${range.toFixed(0)}%`);
   }
+  const cv = cvPct(x.iters_ms);
+  if (cv != null) parts3.push(`cv ${cv.toFixed(1)}%`);
+  const p95 = quantile(x.iters_ms, 0.95);
+  if (p95 != null) parts3.push(`p95 ${fmtMs(p95)}`);
   if (x.peak_rss_mb) parts3.push(`rss ${x.peak_rss_mb.toFixed(0)}MB`);
   const line3 = parts3.length ? parts3.join(' · ') : null;
 
@@ -564,7 +598,7 @@ function buildHtml(agg) {
 <head>
 <meta charset="utf-8">
 <title>bee-bench report</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="../vendor/chart.umd.min.js"></script>
 <style>
   body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 1300px; margin: 2rem auto; padding: 0 1rem; color: #222; }
   h1 { margin-bottom: 0.25rem; }
@@ -651,6 +685,22 @@ function rangePct(iters) {
   if (med === 0) return null;
   const half = Math.max(med - s[0], s[s.length-1] - med);
   return (half/med)*100;
+}
+function cvPct(iters) {
+  if (!iters || iters.length < 2) return null;
+  const mean = iters.reduce((s,v)=>s+v,0)/iters.length;
+  if (mean === 0) return null;
+  const variance = iters.reduce((s,v)=>s+(v-mean)*(v-mean),0)/(iters.length-1);
+  return (Math.sqrt(variance)/mean)*100;
+}
+function quantile(iters, q) {
+  if (!iters || iters.length < 10) return null;
+  const s = [...iters].sort((a,b)=>a-b);
+  const pos = (s.length-1)*q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) return s[lo];
+  return s[lo] + (s[hi]-s[lo])*(pos-lo);
 }
 function bestMs(row) {
   let b = Infinity;
@@ -800,8 +850,14 @@ for (const g of GROUPS) {
         const isBest = ratio === 1;
         const pu = perUnit(c.case, row.param, x.median_ms);
         const rng = rangePct(x.iters_ms);
+        const cv = cvPct(x.iters_ms);
+        const p95 = quantile(x.iters_ms, 0.95);
+        const varBits = [];
+        if (rng != null) varBits.push('±' + rng.toFixed(0) + '%');
+        if (cv != null) varBits.push('cv ' + cv.toFixed(1) + '%');
+        if (p95 != null) varBits.push('p95 ' + fmtMs(p95));
         const tp = x.throughput_mbps != null ? ' (' + x.throughput_mbps.toFixed(1) + ' MB/s)' : '';
-        const rss = x.peak_rss_mb ? '<div class="sub">rss ' + x.peak_rss_mb.toFixed(0) + 'MB' + (rng!=null?' · ±'+rng.toFixed(0)+'%':'') + '</div>' : (rng!=null?'<div class="sub">±'+rng.toFixed(0)+'%</div>':'');
+        const rss = x.peak_rss_mb ? '<div class="sub">rss ' + x.peak_rss_mb.toFixed(0) + 'MB' + (varBits.length ? ' · ' + varBits.join(' · ') : '') + '</div>' : (varBits.length ? '<div class="sub">' + varBits.join(' · ') + '</div>' : '');
         const main = '<div class="' + (isBest?'winner':'') + '">' + fmtMs(x.median_ms) + ' ' + (isBest?'(best)':'('+fmtRatio(ratio)+')') + tp + '</div>';
         const sub = pu ? '<div class="sub">' + pu + '</div>' : '';
         return '<td>' + main + sub + rss + '</td>';

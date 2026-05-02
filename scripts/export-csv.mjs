@@ -25,7 +25,8 @@ const agg = JSON.parse(readFileSync(IN, 'utf8'));
 const HEADERS = [
   'case', 'param', 'runner',
   'iters', 'median_ms', 'mean_ms', 'min_ms', 'max_ms',
-  'range_pct', 'throughput_mbps', 'peak_rss_mb',
+  'stddev_ms', 'cv_pct', 'range_pct', 'p95_ms',
+  'throughput_mbps', 'peak_rss_mb',
   'ratio_to_best', 'is_best', 'skipped', 'notes',
 ];
 
@@ -44,6 +45,9 @@ for (const c of agg.cases) {
       const ratio = !x.skipped && best && x.median_ms > 0 ? x.median_ms / best : null;
       const isBest = ratio === 1 ? 'true' : 'false';
       const range = !x.skipped ? rangePct(x.iters_ms) : null;
+      const sd = !x.skipped ? stddev(x.iters_ms) : null;
+      const cv = !x.skipped ? cvPct(x.iters_ms) : null;
+      const p95 = !x.skipped ? quantile(x.iters_ms, 0.95) : null;
       rows.push([
         csv(c.case),
         csv(paramLabel),
@@ -53,7 +57,10 @@ for (const c of agg.cases) {
         num(x.mean_ms),
         num(x.min_ms),
         num(x.max_ms),
+        num(sd),
+        num(cv),
         num(range),
+        num(p95),
         num(x.throughput_mbps),
         num(x.peak_rss_mb),
         num(ratio),
@@ -93,6 +100,28 @@ function rangePct(iters) {
   if (med === 0) return null;
   const half = Math.max(med - s[0], s[s.length - 1] - med);
   return (half / med) * 100;
+}
+function stddev(iters) {
+  if (!iters || iters.length < 2) return null;
+  const mean = iters.reduce((s, v) => s + v, 0) / iters.length;
+  const variance = iters.reduce((s, v) => s + (v - mean) * (v - mean), 0) / (iters.length - 1);
+  return Math.sqrt(variance);
+}
+function cvPct(iters) {
+  const sd = stddev(iters);
+  if (sd == null) return null;
+  const mean = iters.reduce((s, v) => s + v, 0) / iters.length;
+  if (mean === 0) return null;
+  return (sd / mean) * 100;
+}
+function quantile(iters, q) {
+  if (!iters || iters.length < 10) return null;
+  const s = [...iters].sort((a, b) => a - b);
+  const pos = (s.length - 1) * q;
+  const lo = Math.floor(pos);
+  const hi = Math.ceil(pos);
+  if (lo === hi) return s[lo];
+  return s[lo] + (s[hi] - s[lo]) * (pos - lo);
 }
 
 function formatParam(p) {

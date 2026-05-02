@@ -77,6 +77,7 @@ scripts/
   run-all.sh             rotates runner order, runs all, aggregates
   aggregate.mjs          results/*.json → report.md + report.html
   export-csv.mjs         aggregate.json → flat report.csv
+  validate-spec.mjs      check each runner's latest JSON covers the spec
   compare.mjs            diff two aggregate.json files
   preserve-run.sh        snapshot results/ to results/_<label>/
 FINDINGS.md              qualitative observations

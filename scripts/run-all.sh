@@ -84,4 +84,8 @@ node scripts/aggregate.mjs
 node scripts/export-csv.mjs
 
 echo
+echo "--- spec coverage ---"
+node scripts/validate-spec.mjs || echo "(coverage warnings above — does not block aggregation)"
+
+echo
 echo "Done. See results/report.md, results/report.html, results/report.csv."
