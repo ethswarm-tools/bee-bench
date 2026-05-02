@@ -15,6 +15,7 @@ All three runners hit the same local Bee node, run the same case set defined in 
 - [`results/INDEX.md`](results/INDEX.md) — landing page, links into everything else
 - [`results/report.md`](results/report.md) — auto-generated numerical report
 - [`results/report.html`](results/report.html) — same data, interactive (raw source)
+- [`results/report.csv`](results/report.csv) — flat per-row CSV (one row per case × param × runner) for spreadsheet / pandas analysis
 - [`FINDINGS.md`](FINDINGS.md) — qualitative observations (F1–F21)
 
 > ## ⚠ MB/s numbers are NOT Swarm-network throughput
@@ -75,6 +76,7 @@ scripts/
   gen-fixtures.sh        random binaries for sizes_mb + 1GB
   run-all.sh             rotates runner order, runs all, aggregates
   aggregate.mjs          results/*.json → report.md + report.html
+  export-csv.mjs         aggregate.json → flat report.csv
   compare.mjs            diff two aggregate.json files
   preserve-run.sh        snapshot results/ to results/_<label>/
 FINDINGS.md              qualitative observations
@@ -91,6 +93,33 @@ See `bench-spec.json` for the authoritative list. Each runner reads it at startu
 - **Network upload (streaming from disk)** — `net.bzz.upload-from-disk`. **bee-rs N/A** (no AsyncRead path; documented in FINDINGS).
 - **Network download** — `net.bzz.download`, `net.bytes.head`, `net.bytes.download.range`. ⚠ Local-cache hit when the bench just uploaded; not a real-network metric.
 - **Bee chunk-pipeline** — `net.chunks.upload`, `net.stream-dir.upload`, `net.soc.upload`. ⚠ Sepolia-bottlenecked, not a client comparison.
+
+### Adding a new case
+
+A case is the same code shape across three runners + one entry in `bench-spec.json`. Concretely:
+
+1. **`bench-spec.json`** — append an object to `cases`:
+   ```json
+   {
+     "id": "net.bytes.upload",
+     "kind": "net",
+     "params_from": "sizes_mb",
+     "doc": "POST /bytes for each size_mb. Server-side default deferred upload."
+   }
+   ```
+   `kind` is `cpu` or `net`. Use `params: [...]` for an explicit list, or `params_from: "sizes_mb"` / `"sizes_mb_plus_large"` to inherit the global size sweep. The `doc` string is rendered under the case heading in the report — keep it one line, name the endpoint or the operation.
+
+2. **`runner-go/cases.go`** — add a function `func runMyCase(ctx ..., param Param) (CaseResult, error)`, register it in `cases.go:Dispatch` by `id`. Use the existing helpers (`measureIters`, `withRSS`, `randomBytes`).
+
+3. **`runner-rs/src/cases.rs`** — same shape: add an async `pub async fn run_my_case(...) -> Result<CaseResult>` and dispatch by id.
+
+4. **`runner-js/runner.mjs`** — add a case in the dispatch switch; the helpers are inline at the top of the file.
+
+5. **Run all three.** Each runner reads `bench-spec.json`, hashes it, and embeds the hash in the result JSON so downstream consumers can detect spec drift between runners.
+
+If a runner can't implement the case (e.g. `net.bzz.upload-from-disk` on bee-rs which lacks an AsyncRead path), return `CaseResult{ skipped: true, skip_reason: "..." }`. The aggregator renders skipped cells as `*skip:* <reason>` and excludes them from the runner's geomean.
+
+The compare script (`scripts/compare.mjs`) cross-checks two `aggregate.json` files for missing cases — useful when adding a case to confirm all runners actually emit it.
 
 ### Default-mode caveat
 

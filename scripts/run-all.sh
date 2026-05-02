@@ -81,6 +81,7 @@ echo "================================================================"
 echo "  aggregate"
 echo "================================================================"
 node scripts/aggregate.mjs
+node scripts/export-csv.mjs
 
 echo
-echo "Done. See results/report.md and results/report.html."
+echo "Done. See results/report.md, results/report.html, results/report.csv."

@@ -127,12 +127,26 @@ function loadRuns(dir) {
     .filter(f => f.endsWith('.json') && f !== 'aggregate.json' && !f.startsWith('report'))
     .map(f => ({ path: join(dir, f), mtime: statSync(join(dir, f)).mtimeMs }))
     .sort((a, b) => b.mtime - a.mtime);
-  return files.map(f => {
-    const r = JSON.parse(readFileSync(f.path, 'utf8'));
+  const runs = [];
+  for (const f of files) {
+    let r;
+    try {
+      r = JSON.parse(readFileSync(f.path, 'utf8'));
+    } catch (err) {
+      console.error(`ERROR: ${f.path} — malformed JSON: ${err.message}`);
+      console.error('Refusing to aggregate; fix or remove the file and rerun.');
+      process.exit(2);
+    }
+    if (!r || typeof r !== 'object' || !r.runner || !Array.isArray(r.results)) {
+      console.error(`ERROR: ${f.path} — missing required fields (runner, results[])`);
+      console.error('Refusing to aggregate; fix or remove the file and rerun.');
+      process.exit(2);
+    }
     r._file = f.path;
     r._mtime = f.mtime;
-    return r;
-  });
+    runs.push(r);
+  }
+  return runs;
 }
 
 function collapse(runs) {

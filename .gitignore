@@ -4,8 +4,8 @@ results/*
 !results/report.md
 !results/report.html
 !results/aggregate.json
+!results/report.csv
 node_modules/
 runner-go/bench
 runner-rs/target/
-runner-rs/Cargo.lock
 .DS_Store
