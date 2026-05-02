@@ -49,6 +49,35 @@ node scripts/aggregate.mjs
 open results/report.html                    # or read results/report.md
 ```
 
+### Docker
+
+Self-contained image that builds all three runners against the upstream client repos — no host toolchain required.
+
+```bash
+# CPU-only (no Bee node needed; net.* cases skip cleanly)
+docker build -t bee-bench .
+docker run --rm -v "$PWD/out:/workspace/bee-bench/results" bee-bench
+
+# Full suite, against a Bee node on the host
+docker run --rm --network=host \
+  -e BEE_URL=http://localhost:1633 \
+  -e BEE_BATCH_ID=<hex> \
+  -v "$PWD/out:/workspace/bee-bench/results" \
+  bee-bench
+```
+
+Pin upstream versions with `--build-arg`:
+
+```bash
+docker build \
+  --build-arg BEE_GO_REF=v1.1.0 \
+  --build-arg BEE_RS_REF=v1.1.0 \
+  --build-arg BEE_JS_REF=v12.1.0 \
+  -t bee-bench .
+```
+
+A `.devcontainer/devcontainer.json` is also included, so VS Code Remote / GitHub Codespaces will spin up a ready-to-go environment with the toolchain and editor extensions pre-configured.
+
 ## Env vars
 
 | Var | Default | Meaning |

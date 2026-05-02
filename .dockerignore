@@ -1,0 +1,17 @@
+# Keep build context small. Anything the runners need is fetched/built
+# inside the image — these are local artifacts that would only bloat
+# the layer cache.
+
+.git
+.github
+fixtures/
+results/
+runner-go/bench
+runner-rs/target
+runner-js/node_modules
+node_modules
+
+# IDE / OS noise
+.idea
+.vscode
+.DS_Store

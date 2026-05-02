@@ -1,0 +1,32 @@
+{
+  "name": "bee-bench",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "args": {
+      "BEE_GO_REF": "main",
+      "BEE_RS_REF": "main",
+      "BEE_JS_REF": "master"
+    }
+  },
+  "workspaceFolder": "/workspace/bee-bench",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/bee-bench,type=bind",
+  "overrideCommand": true,
+  "remoteEnv": {
+    "BEE_URL": "http://host.docker.internal:1633"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "rust-lang.rust-analyzer",
+        "dbaeumer.vscode-eslint",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "go.gopath": "/go",
+        "rust-analyzer.cargo.targetDir": true
+      }
+    }
+  },
+  "postCreateCommand": "bash -lc 'cd runner-rs && cargo build --release && cd ../runner-go && go build -o bench . && cd ../runner-js && npm install --no-audit --no-fund'"
+}

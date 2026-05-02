@@ -37,6 +37,12 @@ jobs:
           sudo apt-get install -y -qq shellcheck
           shellcheck --severity=warning scripts/*.sh
 
+      - name: Dockerfile passes hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: error
+
       - name: aggregate + export-csv + validate-spec end-to-end on synthetic fixture
         run: |
           mkdir -p _ci_results
