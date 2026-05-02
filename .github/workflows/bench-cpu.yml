@@ -114,10 +114,13 @@ jobs:
 
       - name: Run all three runners — CPU subset only (no batch → net.* skip)
         working-directory: bee-bench
-        # Point at a port that fails fast so any incidental health probes
-        # don't sit in a 30s connect timeout.
+        # Port 1 fails fast on the runners' init-time bee_version probe.
+        # BENCH_ITERS=2 keeps the run well under the timeout — bee-js's
+        # pure-JS ECDSA is ~17s/iter so the 20-iter override the spec
+        # requests for richer local stats would not finish in CI's window.
         env:
           BEE_URL: http://127.0.0.1:1
+          BENCH_ITERS: '2'
         run: ./scripts/run-all.sh
 
       - name: Upload bench reports

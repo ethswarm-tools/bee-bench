@@ -37,6 +37,11 @@ impl CaseOutcome {
 }
 
 fn default_iters(p: &ParamEntry) -> usize {
+    if let Ok(s) = std::env::var("BENCH_ITERS") {
+        if let Ok(n) = s.parse::<usize>() {
+            if n > 0 { return n; }
+        }
+    }
     p.get("iters_override").and_then(|v| v.as_u64()).map(|v| v as usize).unwrap_or(5)
 }
 

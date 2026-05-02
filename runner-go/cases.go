@@ -1046,8 +1046,17 @@ func intParam(p ParamEntry, key string, dflt int) int {
 }
 
 func defaultIters(p ParamEntry) int {
+	if s := os.Getenv("BENCH_ITERS"); s != "" {
+		var n int
+		if _, err := fmt.Sscanf(s, "%d", &n); err == nil && n > 0 {
+			return n
+		}
+	}
 	if v, ok := p["iters_override"].(int); ok && v > 0 {
 		return v
+	}
+	if f, ok := p["iters_override"].(float64); ok && f > 0 {
+		return int(f)
 	}
 	return 5
 }

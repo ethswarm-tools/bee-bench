@@ -920,6 +920,8 @@ function intParam(p, key, dflt) {
   return typeof v === 'number' ? v : dflt;
 }
 function defaultIters(p) {
+  const env = parseInt(process.env.BENCH_ITERS, 10);
+  if (Number.isFinite(env) && env > 0) return env;
   if (typeof p?.iters_override === 'number' && p.iters_override > 0) return p.iters_override;
   return 5;
 }
