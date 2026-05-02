@@ -1,0 +1,13 @@
+{
+  "name": "bee-bench-runner-js",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node runner.mjs"
+  },
+  "dependencies": {
+    "@ethersphere/bee-js": "file:../../bee-js",
+    "cafe-utility": "^33.9.0"
+  }
+}

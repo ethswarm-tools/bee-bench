@@ -1,0 +1,174 @@
+{
+  "$comment": "Cross-client benchmark spec. All three runners (go/rs/js) read this. Hash this file and record bench_spec_hash in result JSON so cross-run comparisons are validated.",
+  "version": "1",
+  "iters": 5,
+  "warmup_net": 1,
+  "warmup_cpu": 2,
+  "cooldown_between_cases_sec": 5,
+  "sizes_mb": [1, 10, 100],
+  "large_size_mb": 1024,
+  "rss_sample_interval_ms": 100,
+  "cases": [
+    {
+      "id": "cpu.keccak.chunk-hash",
+      "kind": "cpu",
+      "params": [{"count": 10000, "chunk_bytes": 4096}],
+      "doc": "Hash N 4096-byte payloads via the client's BMT chunk-address path. Per-call overhead dominates."
+    },
+    {
+      "id": "cpu.keccak.bulk",
+      "kind": "cpu",
+      "params": [{"size_mb": 100}],
+      "doc": "Hash one large buffer in a single keccak call. Throughput, not per-call overhead."
+    },
+    {
+      "id": "cpu.bmt.file-root",
+      "kind": "cpu",
+      "params_from": "sizes_mb_plus_large",
+      "doc": "Compute Mantaray/BMT root for a buffer; no upload. The colleague's chunking-perf hypothesis."
+    },
+    {
+      "id": "cpu.bmt.encrypted-file-root",
+      "kind": "cpu",
+      "params_from": "sizes_mb_plus_large",
+      "doc": "Same as cpu.bmt.file-root but with encryption. BMT input differs per chunk because of the per-chunk key prefix."
+    },
+    {
+      "id": "cpu.ecdsa.sign-1000",
+      "kind": "cpu",
+      "params": [{"count": 1000}],
+      "doc": "Sign 1000 32-byte digests with the eth-envelope scheme (all three clients identical). Tests the colleague's ECDSA-in-JS hypothesis."
+    },
+    {
+      "id": "cpu.ecdsa.verify-1000",
+      "kind": "cpu",
+      "params": [{"count": 1000}],
+      "doc": "Verify 1000 (digest, signature) pairs (recover public key under eth-envelope). Verify dominates feed reads. Pure-JS bigint ECDSA recover is the suspected pessimal case — likely worse than the 221x sign-side gap."
+    },
+    {
+      "id": "cpu.identity.create",
+      "kind": "cpu",
+      "params": [{"count": 1000}],
+      "doc": "Generate 1000 fresh secp256k1 identities (random 32 bytes → PrivateKey → public key → 20-byte ETH address). Same crypto-backend story as ECDSA but for keygen — point multiplication dominates."
+    },
+    {
+      "id": "cpu.keccak.parallel",
+      "kind": "cpu",
+      "params": [{"count": 10000, "chunk_bytes": 4096}],
+      "doc": "Distribute 10000 BMT chunk hashes across NumCPU workers. Each worker generates + hashes its own slice. Reveals real CPU scaling: bee-go (goroutines) and bee-rs (std::thread) near-linear; bee-js uses Node Worker threads."
+    },
+    {
+      "id": "cpu.manifest.hash-50files",
+      "kind": "cpu",
+      "params": [{"files": 50, "file_bytes": 1024}],
+      "doc": "Offline manifest root for 50 small files (no upload)."
+    },
+    {
+      "id": "cpu.manifest.lookup-large",
+      "kind": "cpu",
+      "params": [{"entries": 5000, "lookups": 1000}],
+      "doc": "Build a Mantaray with 5000 path entries (outside timing), then time 1000 random Find/lookup calls. Trie-traversal hot path; each client implements Mantaray independently so divergence reveals lookup-cost differences."
+    },
+    {
+      "id": "net.stamps.list",
+      "kind": "net",
+      "params": [{}],
+      "doc": "GET /stamps. Calibration / control case. If runners diverge wildly here, the rig is mis-set. Run early before Bee's sync queue builds up."
+    },
+    {
+      "id": "net.stamps.concurrent",
+      "kind": "net",
+      "params": [{"count": 200}],
+      "doc": "Fire 200 parallel GET /stamps. Bee returns instantly; spread exposes pure HTTP-client overhead — connection pool size, keepalive default (axios's default-off vs reqwest/Go's default-on), async dispatch."
+    },
+    {
+      "id": "net.feed.write-read.fresh",
+      "kind": "net",
+      "params": [{}],
+      "doc": "Write feed update at next index, then read latest with retry-with-backoff (Bee /feeds endpoint can take 30-60s on Sepolia). Run BEFORE heavy upload cases — when Bee's sync queue is busy, /feeds returns 404."
+    },
+    {
+      "id": "net.feed.write-read.warm",
+      "kind": "net",
+      "params": [{"reads": 5}],
+      "doc": "After fresh read, time N subsequent reads against the same feed (Bee cache warm)."
+    },
+    {
+      "id": "net.bzz.upload",
+      "kind": "net",
+      "params_from": "sizes_mb_plus_large",
+      "doc": "POST /bzz from in-memory salted buffer. Per-iter salt prefix → unique reference → no Bee dedup."
+    },
+    {
+      "id": "net.bzz.upload.encrypted",
+      "kind": "net",
+      "params_from": "sizes_mb",
+      "doc": "Same as net.bzz.upload but with encrypt=true. Skipped at 1GB by default."
+    },
+    {
+      "id": "net.bzz.upload-from-disk",
+      "kind": "net",
+      "runner_subset": ["go", "js"],
+      "params": [{"size_mb": 1024, "from_disk": true}],
+      "doc": "Stream 1GB from disk via os.Open / fs.createReadStream. bee-rs N/A — has no AsyncRead upload path."
+    },
+    {
+      "id": "net.bytes.upload",
+      "kind": "net",
+      "params_from": "sizes_mb",
+      "doc": "POST /bytes (raw, no manifest) — isolates manifest serialization cost vs net.bzz.upload."
+    },
+    {
+      "id": "net.bzz.download",
+      "kind": "net",
+      "params_from": "sizes_mb_plus_large",
+      "doc": "GET /bzz/<ref>. Drains body to counting sink — never buffers full response. Pre-uploaded fixture references."
+    },
+    {
+      "id": "net.bytes.head",
+      "kind": "net",
+      "params": [{"count": 100}],
+      "doc": "100 × HEAD /bytes/<ref> against the 1MB fixture reference. Metadata-only path — isolates HTTP-stack overhead from body transfer."
+    },
+    {
+      "id": "net.bytes.download.range",
+      "kind": "net",
+      "params": [{"size_mb": 1, "ranges": 50}],
+      "doc": "50 × GET /bytes/<ref> with Range: bytes=0-65535 against the 1MB fixture. Tests partial-download path and HTTP Range handling."
+    },
+    {
+      "id": "net.chunks.upload",
+      "kind": "net",
+      "params": [{"count": 50}],
+      "doc": "50 × pre-built content-addressed chunks via /chunks. Per-call overhead. (Reduced from 1000 — Sepolia /chunks endpoint syncs ~600ms/chunk after a sync queue builds up from the bzz/bytes upload phase.)"
+    },
+    {
+      "id": "net.stream-dir.upload",
+      "kind": "net",
+      "params": [{"files": 20, "file_bytes": 8192}],
+      "doc": "Streaming directory upload for 20 files. (Reduced from 50 — back-pressured /chunks pipeline on Sepolia made larger sets dominate wall clock.)"
+    },
+    {
+      "id": "net.soc.upload",
+      "kind": "net",
+      "params": [{"count": 25}],
+      "doc": "Single-owner-chunk write × 25. Hot path under feeds. (Was 100 — reduced to keep wall clock reasonable on Sepolia.)"
+    },
+    {
+      "id": "net.pin.add-list",
+      "kind": "net",
+      "params": [{"count": 25}],
+      "doc": "Pin 25 pre-uploaded refs (POST /pins/<ref>) → GET /pins → unpin all 25 (DELETE /pins/<ref>). Per-call HTTP overhead on a different endpoint than /stamps."
+    },
+    {
+      "id": "net.tags.upload-with-tag",
+      "kind": "net",
+      "params": [{"size_mb": 1}],
+      "doc": "POST /tags → upload 1MB via /bytes with Swarm-Tag header → GET /tags/<id>. Tests tag observability bookkeeping cost vs raw /bytes upload."
+    }
+  ],
+  "param_sets": {
+    "sizes_mb": [{"size_mb": 1}, {"size_mb": 10}, {"size_mb": 100}],
+    "sizes_mb_plus_large": [{"size_mb": 1}, {"size_mb": 10}, {"size_mb": 100}, {"size_mb": 1024, "large": true}]
+  }
+}
