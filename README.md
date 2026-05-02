@@ -5,8 +5,8 @@
 Cross-client benchmark suite for the three Swarm Bee API clients living as siblings:
 
 - `bee-js/` — `@ethersphere/bee-js` v12.1.0
-- `bee-go/` — `github.com/ethswarm-tools/bee-go`
-- `bee-rs/` — `bee-rs` v1.0.1
+- `bee-go/` — `github.com/ethswarm-tools/bee-go` v1.1.0
+- `bee-rs/` — `bee-rs` v1.1.0
 
 All three runners hit the same local Bee node, run the same case set defined in `bench-spec.json`, and emit JSON results that the aggregator turns into a markdown report and an interactive HTML chart page.
 
