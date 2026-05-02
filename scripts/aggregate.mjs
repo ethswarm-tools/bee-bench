@@ -68,6 +68,11 @@ function main() {
   }
   const { latestByRunner, allCases, specHashes } = collapse(runs);
 
+  const caseDocs = loadCaseDocs(join(REPO_ROOT, 'bench-spec.json'));
+  for (const c of allCases) {
+    if (caseDocs[c.case]) c.doc = caseDocs[c.case];
+  }
+
   const aggregate = {
     generated_at: new Date().toISOString(),
     spec_hashes: [...specHashes],
@@ -102,6 +107,19 @@ function parseArgs(argv) {
     else if (argv[i] === '--out') out.out = argv[++i];
   }
   return out;
+}
+
+function loadCaseDocs(specPath) {
+  try {
+    const spec = JSON.parse(readFileSync(specPath, 'utf8'));
+    const out = {};
+    for (const c of spec.cases || []) {
+      if (c && c.id && c.doc) out[c.id] = c.doc;
+    }
+    return out;
+  } catch {
+    return {};
+  }
 }
 
 function loadRuns(dir) {
@@ -337,16 +355,16 @@ function buildMarkdown(agg, latest) {
   // Scoreboard
   lines.push('## Scoreboard');
   lines.push('');
-  lines.push('Geometric mean of *median-time ratio to fastest runner per row*. 1.00x = fastest. Higher = slower. The "wins" column counts rows where the runner had the lowest median.');
+  lines.push('Geometric mean of *median-time ratio to fastest runner per row*. 1.00x = fastest. Higher = slower. The "wins" column counts rows where the runner had the lowest median. "Rows" is the number of (case, param) rows the runner contributed a valid sample for — context for how broad each geomean is.');
   lines.push('');
   const groupNames = CASE_GROUPS.map(g => g.name);
   const sb = agg.scoreboard;
-  const headers = ['Runner', 'Wins', 'Overall', ...groupNames];
+  const headers = ['Runner', 'Wins', 'Rows', 'Overall', ...groupNames];
   lines.push('| ' + headers.join(' | ') + ' |');
   lines.push('|' + headers.map(() => '---').join('|') + '|');
   for (const r of RUNNER_ORDER) {
     const s = sb[r] || {};
-    const cells = [RUNNER_LABELS[r], String(s.wins ?? 0), fmtRatio(s.geomean_overall)];
+    const cells = [RUNNER_LABELS[r], String(s.wins ?? 0), String(s.sample_count ?? 0), fmtRatio(s.geomean_overall)];
     for (const gn of groupNames) cells.push(fmtRatio(s.geomean_by_group?.[gn]));
     lines.push('| ' + cells.join(' | ') + ' |');
   }
@@ -363,6 +381,7 @@ function buildMarkdown(agg, latest) {
     for (const c of groupCases) {
       lines.push(`### \`${c.case}\``);
       lines.push('');
+      if (c.doc) { lines.push(`> ${c.doc}`); lines.push(''); }
       const headers2 = ['param', ...RUNNER_ORDER.map(r => RUNNER_LABELS[r]), 'chart'];
       lines.push('| ' + headers2.join(' | ') + ' |');
       lines.push('|' + headers2.map(() => '---').join('|') + '|');
@@ -539,7 +558,10 @@ function buildHtml(agg) {
   .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
   .case { margin-bottom: 2.5rem; padding: 1rem 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px; }
   .case h3 { margin: 0 0 0.5rem; font-family: ui-monospace, monospace; font-size: 1rem; }
-  .doc { color: #666; font-size: 0.85rem; margin-bottom: 0.5rem; }
+  .doc { color: #666; font-size: 0.85rem; margin-bottom: 0.75rem; font-style: italic; }
+  .fit { margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 6px; }
+  .fit-title { font-size: 0.85rem; margin-bottom: 0.25rem; }
+  .fit table { margin-top: 0.25rem; }
   .group-note { color: #666; font-size: 0.9rem; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 6px; }
   .chart-wrap { height: 320px; position: relative; }
   table { border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
@@ -631,17 +653,64 @@ function perUnit(caseId, param, med) {
   if (typeof n !== 'number' || n <= 0) return null;
   return fmtMs(med/n) + '/' + cfg.label;
 }
+function fitLatencyVsSize(pts) {
+  const filtered = pts.filter(p => typeof p.size_mb === 'number' && p.size_mb > 0 && p.ms > 0);
+  if (filtered.length < 2) return null;
+  const xs = filtered.map(p => p.size_mb * 1024 * 1024);
+  const ys = filtered.map(p => p.ms);
+  const n = xs.length;
+  const sumX = xs.reduce((a,b)=>a+b,0);
+  const sumY = ys.reduce((a,b)=>a+b,0);
+  const sumXY = xs.reduce((s,x,i)=>s+x*ys[i],0);
+  const sumX2 = xs.reduce((s,x)=>s+x*x,0);
+  const denom = n*sumX2 - sumX*sumX;
+  if (denom === 0) return null;
+  const slope = (n*sumXY - sumX*sumY) / denom;
+  const intercept = (sumY - slope*sumX) / n;
+  if (!(slope > 0)) return { fixed_overhead_ms: intercept, throughput_mbps: null, points: n };
+  const bytesPerMs = 1/slope;
+  const mbps = bytesPerMs * 1000 / (1024 * 1024);
+  return { fixed_overhead_ms: intercept, throughput_mbps: mbps, points: n };
+}
+function renderLatencyFitHtml(c) {
+  const sizeRows = c.rows.filter(r => typeof r.param?.size_mb === 'number');
+  if (sizeRows.length < 2) return '';
+  const fits = {};
+  let any = false;
+  for (const runner of RUNNERS) {
+    const pts = sizeRows.map(row => {
+      const x = row.runners[runner];
+      const ok = x && !x.skipped && x.iters_ms && x.iters_ms.length > 0 && x.median_ms > 0;
+      return { size_mb: row.param.size_mb, ms: ok ? x.median_ms : null };
+    });
+    const f = fitLatencyVsSize(pts);
+    fits[runner] = f;
+    if (f) any = true;
+  }
+  if (!any) return '';
+  let html = '<div class="fit"><div class="fit-title"><strong>Latency-vs-size linear fit</strong> <span class="sub">(time_ms ≈ fixed_overhead + bytes / throughput)</span></div>';
+  html += '<table><thead><tr><th>Runner</th><th>fixed overhead</th><th>peak throughput</th><th>points</th></tr></thead><tbody>';
+  for (const r of RUNNERS) {
+    const f = fits[r];
+    if (!f) { html += '<tr><td>' + LABELS[r] + '</td><td>—</td><td>—</td><td>—</td></tr>'; continue; }
+    const ovh = f.fixed_overhead_ms != null ? fmtMs(Math.max(0, f.fixed_overhead_ms)) : '—';
+    const tp = f.throughput_mbps != null ? f.throughput_mbps.toFixed(1) + ' MB/s' : '—';
+    html += '<tr><td>' + LABELS[r] + '</td><td>' + ovh + '</td><td>' + tp + '</td><td>' + f.points + '</td></tr>';
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
 
 // Scoreboard
 (function () {
   const t = document.getElementById('scoreboardTable');
   const groupNames = GROUPS.map(g => g.name);
-  let html = '<thead><tr><th>Runner</th><th>Wins</th><th>Overall</th>';
+  let html = '<thead><tr><th>Runner</th><th>Wins</th><th>Rows</th><th>Overall</th>';
   for (const gn of groupNames) html += '<th>' + gn + '</th>';
   html += '</tr></thead><tbody>';
   for (const r of RUNNERS) {
     const s = data.scoreboard?.[r] || {};
-    html += '<tr><td>' + LABELS[r] + '</td><td>' + (s.wins ?? 0) + '</td><td>' + fmtRatio(s.geomean_overall) + '</td>';
+    html += '<tr><td>' + LABELS[r] + '</td><td>' + (s.wins ?? 0) + '</td><td>' + (s.sample_count ?? 0) + '</td><td>' + fmtRatio(s.geomean_overall) + '</td>';
     for (const gn of groupNames) html += '<td>' + fmtRatio(s.geomean_by_group?.[gn]) + '</td>';
     html += '</tr>';
   }
@@ -666,7 +735,8 @@ for (const g of GROUPS) {
   for (const c of groupCases) {
     const div = document.createElement('div');
     div.className = 'case';
-    div.innerHTML = '<h3>' + c.case + '</h3><div class="chart-wrap"><canvas></canvas></div>';
+    const docHtml = c.doc ? '<div class="doc">' + escapeHtml(c.doc) + '</div>' : '';
+    div.innerHTML = '<h3>' + c.case + '</h3>' + docHtml + '<div class="chart-wrap"><canvas></canvas></div>';
     root.appendChild(div);
     const canvas = div.querySelector('canvas');
 
@@ -725,7 +795,17 @@ for (const g of GROUPS) {
     }).join('') + '</tbody>';
     table.innerHTML = header + body;
     div.appendChild(table);
+
+    const fitHtml = renderLatencyFitHtml(c);
+    if (fitHtml) {
+      const fitDiv = document.createElement('div');
+      fitDiv.innerHTML = fitHtml;
+      div.appendChild(fitDiv.firstChild);
+    }
   }
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 </script>
 </body>
