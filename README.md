@@ -78,6 +78,13 @@ docker build \
 
 A `.devcontainer/devcontainer.json` is also included, so VS Code Remote / GitHub Codespaces will spin up a ready-to-go environment with the toolchain and editor extensions pre-configured.
 
+### CI
+
+Two workflows in `.github/workflows/`:
+
+- **`validate.yml`** runs on every PR + main: JSON / script-syntax / shellcheck / hadolint, plus an end-to-end aggregate-pipeline test against a synthetic 3-runner fixture. Fast (~1 min).
+- **`bench-cpu.yml`** runs on every PR + main + manual dispatch: checks out `bee-go` / `bee-rs` / `bee-js` as siblings, builds all three runners, runs the CPU subset (all `cpu.*` cases; `net.*` cases skip without `BEE_BATCH_ID`), uploads `report.md` / `report.html` / `report.csv` / `aggregate.json` plus the per-runner JSONs as a 14-day artifact. Slower (~5–10 min cold; ~3 min warm with cargo / npm / go-mod cache).
+
 ## Env vars
 
 | Var | Default | Meaning |

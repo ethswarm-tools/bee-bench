@@ -1,0 +1,136 @@
+name: bench-cpu
+
+# Builds all three runners against pinned (or main-branch) sibling repos
+# and runs the CPU subset on every PR + push to main. No Bee node is
+# needed — net.* cases skip cleanly without BEE_BATCH_ID. Reports are
+# uploaded as a workflow artifact so reviewers can inspect them.
+#
+# Layout: actions/checkout places each repo at a sibling path of the
+# workspace root so runner-{rs,go,js}'s ../../bee-{rs,go,js} deps resolve
+# the same way they do on a contributor's machine.
+#
+# bee-bench/
+# bee-go/      (sibling)
+# bee-rs/      (sibling)
+# bee-js/      (sibling)
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bee_go_ref:
+        description: 'bee-go ref (branch/tag/sha)'
+        default: 'main'
+      bee_rs_ref:
+        description: 'bee-rs ref (branch/tag/sha)'
+        default: 'main'
+      bee_js_ref:
+        description: 'bee-js ref (branch/tag/sha)'
+        default: 'master'
+
+env:
+  BEE_GO_REF: ${{ inputs.bee_go_ref || 'main' }}
+  BEE_RS_REF: ${{ inputs.bee_rs_ref || 'main' }}
+  BEE_JS_REF: ${{ inputs.bee_js_ref || 'master' }}
+
+# Cancel in-flight runs on the same PR/branch — a force-push shouldn't pay
+# for the previous run's remaining build time.
+concurrency:
+  group: bench-cpu-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cpu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout bee-bench
+        uses: actions/checkout@v4
+        with:
+          path: bee-bench
+
+      - name: Checkout bee-go
+        uses: actions/checkout@v4
+        with:
+          repository: ethswarm-tools/bee-go
+          ref: ${{ env.BEE_GO_REF }}
+          path: bee-go
+
+      - name: Checkout bee-rs
+        uses: actions/checkout@v4
+        with:
+          repository: ethswarm-tools/bee-rs
+          ref: ${{ env.BEE_RS_REF }}
+          path: bee-rs
+
+      - name: Checkout bee-js
+        uses: actions/checkout@v4
+        with:
+          repository: ethersphere/bee-js
+          ref: ${{ env.BEE_JS_REF }}
+          path: bee-js
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: bee-bench/runner-go/go.sum
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: bee-bench/runner-rs
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: bee-bench/runner-js/package-lock.json
+
+      - name: Build bee-js (runner-js depends on its dist)
+        working-directory: bee-js
+        run: |
+          npm install --no-audit --no-fund
+          npm run build:node
+
+      - name: Build runner-rs
+        working-directory: bee-bench/runner-rs
+        run: cargo build --release
+
+      - name: Build runner-go
+        working-directory: bee-bench/runner-go
+        run: go build -o bench .
+
+      - name: Install runner-js deps
+        working-directory: bee-bench/runner-js
+        run: npm install --no-audit --no-fund
+
+      - name: Generate fixtures (CPU cases like cpu.keccak.bulk read them)
+        working-directory: bee-bench
+        run: ./scripts/gen-fixtures.sh
+
+      - name: Run all three runners — CPU subset only (no batch → net.* skip)
+        working-directory: bee-bench
+        # Point at a port that fails fast so any incidental health probes
+        # don't sit in a 30s connect timeout.
+        env:
+          BEE_URL: http://127.0.0.1:1
+        run: ./scripts/run-all.sh
+
+      - name: Upload bench reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-cpu-reports-${{ github.run_id }}
+          path: |
+            bee-bench/results/report.md
+            bee-bench/results/report.html
+            bee-bench/results/report.csv
+            bee-bench/results/aggregate.json
+            bee-bench/results/go-*.json
+            bee-bench/results/rs-*.json
+            bee-bench/results/js-*.json
+          retention-days: 14
