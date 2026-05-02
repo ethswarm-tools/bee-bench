@@ -1,6 +1,6 @@
 # bee-bench report
 
-Generated: 2026-05-02T17:12:43.876Z
+Generated: 2026-05-02T17:31:48.484Z
 
 **See also:** [results landing page](INDEX.md) · [findings (qualitative)](../FINDINGS.md) · [README (how to run)](../README.md)
 

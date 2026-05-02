@@ -27,6 +27,7 @@ const HEADERS = [
   'iters', 'median_ms', 'mean_ms', 'min_ms', 'max_ms',
   'stddev_ms', 'cv_pct', 'range_pct', 'p95_ms',
   'throughput_mbps', 'peak_rss_mb',
+  'cpu_user_ms', 'cpu_sys_ms', 'cpu_wall_ratio',
   'ratio_to_best', 'is_best', 'skipped', 'notes',
 ];
 
@@ -48,6 +49,9 @@ for (const c of agg.cases) {
       const sd = !x.skipped ? stddev(x.iters_ms) : null;
       const cv = !x.skipped ? cvPct(x.iters_ms) : null;
       const p95 = !x.skipped ? quantile(x.iters_ms, 0.95) : null;
+      const cpuTot = !x.skipped ? (x.cpu_user_ms || 0) + (x.cpu_sys_ms || 0) : 0;
+      const wallTot = !x.skipped ? (x.iters_ms || []).reduce((a, b) => a + b, 0) : 0;
+      const cpuWall = (cpuTot > 0 && wallTot > 0) ? cpuTot / wallTot : null;
       rows.push([
         csv(c.case),
         csv(paramLabel),
@@ -63,6 +67,9 @@ for (const c of agg.cases) {
         num(p95),
         num(x.throughput_mbps),
         num(x.peak_rss_mb),
+        num(x.cpu_user_ms),
+        num(x.cpu_sys_ms),
+        num(cpuWall),
         num(ratio),
         x.skipped ? '' : isBest,
         skipped,

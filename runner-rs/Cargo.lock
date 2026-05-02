@@ -50,6 +50,7 @@ dependencies = [
  "chrono",
  "futures-util",
  "hex",
+ "libc",
  "rand 0.8.6",
  "reqwest",
  "serde",
@@ -60,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "bee-rs"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "base64",
  "bytes",

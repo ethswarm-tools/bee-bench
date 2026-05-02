@@ -135,7 +135,11 @@ All cases use Bee's server-side default `Swarm-Deferred-Upload: true`. Upload re
 3. **Per-domain sections** — each case gets its own table. Each cell shows:
    - Line 1: median (or **best**) + ratio to fastest, e.g. `**516.6ms** (best)` or `590.7ms (1.14x)`
    - Line 2: throughput · per-unit metric, e.g. `66.1 MB/s · 59µs/call`
-   - Line 3: variance (`±X%`) and peak RSS — `⚠` flag prepended when variance > 50% (flaky measurement)
+   - Line 3: variance (`±X%`, `cv X%`, `p95` when n ≥ 10), peak RSS, and CPU/wall ratio (`cpu Xms (Y.YYx)`). The CPU/wall ratio distinguishes:
+     - `~ 1.00x` → single-thread CPU-bound (e.g. keccak hashing)
+     - `< 1.00x` → wait-bound, mostly blocked on I/O (e.g. `/chunks` upload waiting on Bee sync)
+     - `> 1.00x` → multi-threaded; ~N for N cores active (e.g. `cpu.keccak.parallel`)
+     `⚠` flag prepended on `±X%` when variance > 50% (flaky measurement).
    - Line 4: per-iter sparkline — reveals JIT warmup, GC pauses, network jitter
 4. **Latency-vs-size linear fit** — for cases with multiple sizes (`cpu.bmt.file-root`, `net.bzz.upload`, etc.), a regression `time ≈ fixed_overhead + bytes / throughput` showing per-runner per-call overhead and peak throughput.
 5. **Inline SVG bars** in each row — visual ranking, fastest is green.

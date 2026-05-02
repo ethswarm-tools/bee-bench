@@ -481,9 +481,9 @@ function formatCell(caseId, row, runner, bestMs) {
   if (perUnit) parts2.push(perUnit);
   const line2 = parts2.length ? parts2.join(' · ') : null;
 
-  // line 3: variance + rss (variance gets ⚠ if > 50% — flaky).
-  // Show CV (stddev/mean) alongside ±range for cases with enough iters,
-  // and p95 when n ≥ 10.
+  // line 3: variance + rss + CPU/wall ratio (variance gets ⚠ if > 50% —
+  // flaky; CPU/wall ≈ 1 = single-thread CPU-bound, ≪ 1 = wait-bound,
+  // ≫ 1 = multi-threaded).
   const parts3 = [];
   if (range != null) {
     const flag = range > 50 ? '⚠ ' : '';
@@ -494,6 +494,11 @@ function formatCell(caseId, row, runner, bestMs) {
   const p95 = quantile(x.iters_ms, 0.95);
   if (p95 != null) parts3.push(`p95 ${fmtMs(p95)}`);
   if (x.peak_rss_mb) parts3.push(`rss ${x.peak_rss_mb.toFixed(0)}MB`);
+  const cpuTot = (x.cpu_user_ms || 0) + (x.cpu_sys_ms || 0);
+  const wallTot = (x.iters_ms || []).reduce((a, b) => a + b, 0);
+  if (cpuTot > 0 && wallTot > 0) {
+    parts3.push(`cpu ${fmtMs(cpuTot)} (${(cpuTot / wallTot).toFixed(2)}x)`);
+  }
   const line3 = parts3.length ? parts3.join(' · ') : null;
 
   // line 4: per-iter sparkline (reveals JIT warmup, GC pauses, network jitter)
@@ -852,10 +857,14 @@ for (const g of GROUPS) {
         const rng = rangePct(x.iters_ms);
         const cv = cvPct(x.iters_ms);
         const p95 = quantile(x.iters_ms, 0.95);
+        const cpuTotV = (x.cpu_user_ms || 0) + (x.cpu_sys_ms || 0);
+        const wallTotV = (x.iters_ms || []).reduce((a, b) => a + b, 0);
+        const cpuRatioV = (cpuTotV > 0 && wallTotV > 0) ? cpuTotV / wallTotV : null;
         const varBits = [];
         if (rng != null) varBits.push('±' + rng.toFixed(0) + '%');
         if (cv != null) varBits.push('cv ' + cv.toFixed(1) + '%');
         if (p95 != null) varBits.push('p95 ' + fmtMs(p95));
+        if (cpuRatioV != null) varBits.push('cpu ' + fmtMs(cpuTotV) + ' (' + cpuRatioV.toFixed(2) + 'x)');
         const tp = x.throughput_mbps != null ? ' (' + x.throughput_mbps.toFixed(1) + ' MB/s)' : '';
         const rss = x.peak_rss_mb ? '<div class="sub">rss ' + x.peak_rss_mb.toFixed(0) + 'MB' + (varBits.length ? ' · ' + varBits.join(' · ') : '') + '</div>' : (varBits.length ? '<div class="sub">' + varBits.join(' · ') + '</div>' : '');
         const main = '<div class="' + (isBest?'winner':'') + '">' + fmtMs(x.median_ms) + ' ' + (isBest?'(best)':'('+fmtRatio(ratio)+')') + tp + '</div>';

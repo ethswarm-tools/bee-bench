@@ -1,4 +1,5 @@
 use serde::Serialize;
+use std::mem::MaybeUninit;
 use std::time::Instant;
 
 use crate::spec::{BenchSpec, CaseSpec, ParamEntry};
@@ -19,6 +20,10 @@ pub struct CaseResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub throughput_mbps: Option<f64>,
     pub peak_rss_mb: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_user_ms: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cpu_sys_ms: Option<f64>,
     #[serde(skip_serializing_if = "String::is_empty")]
     pub notes: String,
     #[serde(skip_serializing_if = "is_false")]
@@ -151,3 +156,19 @@ pub fn finalize_result(
 }
 
 pub fn iters_for(_spec: &BenchSpec, _p: &ParamEntry) -> usize { 5 }
+
+/// Process-cumulative user/sys CPU time in milliseconds. Subtract pre/post
+/// values around a case to get per-case CPU usage; compared against
+/// wall-clock iters_ms this distinguishes CPU-bound from wait-bound work.
+pub fn get_cpu_ms() -> (f64, f64) {
+    let mut ru = MaybeUninit::<libc::rusage>::uninit();
+    unsafe {
+        if libc::getrusage(libc::RUSAGE_SELF, ru.as_mut_ptr()) != 0 {
+            return (0.0, 0.0);
+        }
+        let ru = ru.assume_init();
+        let user = ru.ru_utime.tv_sec as f64 * 1000.0 + ru.ru_utime.tv_usec as f64 / 1000.0;
+        let sys = ru.ru_stime.tv_sec as f64 * 1000.0 + ru.ru_stime.tv_usec as f64 / 1000.0;
+        (user, sys)
+    }
+}

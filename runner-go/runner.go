@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"syscall"
 	"time"
 )
 
@@ -21,9 +22,25 @@ type CaseResult struct {
 	MeanMs          float64        `json:"mean_ms"`
 	ThroughputMBps  *float64       `json:"throughput_mbps,omitempty"`
 	PeakRSSMB       float64        `json:"peak_rss_mb"`
+	CPUUserMs       float64        `json:"cpu_user_ms,omitempty"`
+	CPUSysMs        float64        `json:"cpu_sys_ms,omitempty"`
 	Notes           string         `json:"notes,omitempty"`
 	Skipped         bool           `json:"skipped,omitempty"`
 	SkipReason      string         `json:"skip_reason,omitempty"`
+}
+
+// getCPUMs returns process-cumulative user/sys CPU time in milliseconds.
+// Subtract pre/post values around a case to get per-case CPU usage. Compared
+// against wall-clock iters_ms this distinguishes CPU-bound (ratio ≈ 1 per
+// thread) from wait-bound (ratio ≪ 1, blocked on I/O) work.
+func getCPUMs() (userMs, sysMs float64) {
+	var ru syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil {
+		return 0, 0
+	}
+	userMs = float64(ru.Utime.Sec)*1000 + float64(ru.Utime.Usec)/1000
+	sysMs = float64(ru.Stime.Sec)*1000 + float64(ru.Stime.Usec)/1000
+	return
 }
 
 type RunResult struct {
@@ -71,8 +88,12 @@ func runCase(ctx context.Context, env *Env, c CaseSpec, p ParamEntry, fn caseFn)
 
 	// Timed run
 	sampler := startRSSSampler(env.Spec.RSSSampleIntervalMs)
+	preU, preS := getCPUMs()
 	ms, bytesPerIter, notes, err := fn(ctx, p)
+	postU, postS := getCPUMs()
 	res.PeakRSSMB = roundTo(sampler.stopAndPeakMB(), 1)
+	res.CPUUserMs = roundTo(postU-preU, 2)
+	res.CPUSysMs = roundTo(postS-preS, 2)
 
 	if err != nil {
 		res.Notes = "ERR: " + err.Error()

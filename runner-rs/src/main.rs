@@ -92,10 +92,16 @@ async fn main() {
             }
 
             let sampler = rss::Sampler::start(spec.rss_sample_interval_ms);
+            let (pre_u, pre_s) = runner::get_cpu_ms();
             let outcome = run_one(&c.id, &p, &client, batch_id_opt.as_ref(), &fixtures).await;
+            let (post_u, post_s) = runner::get_cpu_ms();
             let peak = sampler.finish_mb().await;
 
-            let r = finalize_result(c, p, outcome.ms, outcome.bytes_per_iter, outcome.notes, peak);
+            let mut r = finalize_result(c, p, outcome.ms, outcome.bytes_per_iter, outcome.notes, peak);
+            if !r.skipped {
+                r.cpu_user_ms = Some(runner::round2(post_u - pre_u));
+                r.cpu_sys_ms = Some(runner::round2(post_s - pre_s));
+            }
             log_summary(&c.id, &label, &r);
             results.push(r);
         }

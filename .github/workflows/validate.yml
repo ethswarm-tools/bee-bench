@@ -57,7 +57,8 @@ jobs:
                 "param":{"count":1000,"chunk_bytes":4096,"iters_override":5},
                 "iters_ms":[100,101,99,102,98],
                 "median_ms":100, "min_ms":98, "max_ms":102, "mean_ms":100,
-                "throughput_mbps":40, "peak_rss_mb":50, "notes":"ci"
+                "throughput_mbps":40, "peak_rss_mb":50,
+                "cpu_user_ms":480, "cpu_sys_ms":15, "notes":"ci"
               }
             ]
           }
@@ -75,7 +76,10 @@ jobs:
           test -s _ci_results/report.html
           test -s _ci_results/report.csv
           head -1 _ci_results/report.csv | grep -q '^case,param,runner'
+          head -1 _ci_results/report.csv | grep -q 'cpu_user_ms,cpu_sys_ms,cpu_wall_ratio'
           grep -q 'cpu.keccak.chunk-hash' _ci_results/report.md
+          # CPU/wall-ratio rendering should appear when cpu_*_ms are set
+          grep -q 'cpu .*x)' _ci_results/report.md
 
       - name: spec hashes recorded in committed aggregate.json are consistent
         run: |

@@ -85,14 +85,16 @@ async function main() {
       }
 
       const sampler = startRSSSampler(spec.rss_sample_interval_ms ?? 100);
+      const cpuStart = process.cpuUsage();
       let outcome;
       try {
         outcome = await runOne(c.id, p, { bee, batchHex, fixtures, beeUrl });
       } catch (e) {
         outcome = { ms: [], bytesPerIter: 0, notes: 'SKIP: ' + (e?.message || String(e)) };
       }
+      const cpuDelta = process.cpuUsage(cpuStart);
       const peak = sampler.stop();
-      const r = finalize(c, p, outcome, peak);
+      const r = finalize(c, p, outcome, peak, cpuDelta);
       logSummary(c.id, label, r);
       results.push(r);
     }
@@ -978,7 +980,7 @@ function startRSSSampler(intervalMs) {
   };
 }
 
-function finalize(caseSpec, p, outcome, peakMB) {
+function finalize(caseSpec, p, outcome, peakMB, cpuDelta) {
   const r = {
     case: caseSpec.id,
     param: p,
@@ -990,6 +992,10 @@ function finalize(caseSpec, p, outcome, peakMB) {
     peak_rss_mb: round(peakMB, 1),
     notes: '',
   };
+  if (cpuDelta) {
+    r.cpu_user_ms = round((cpuDelta.user || 0) / 1000, 2);
+    r.cpu_sys_ms = round((cpuDelta.system || 0) / 1000, 2);
+  }
   if (!outcome.ms.length) {
     r.skipped = true;
     if (outcome.notes?.startsWith('SKIP: ')) r.skip_reason = outcome.notes.slice(6);
