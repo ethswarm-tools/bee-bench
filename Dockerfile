@@ -22,7 +22,9 @@
 #                --build-arg BEE_JS_REF=v12.1.0 \
 #                -t bee-bench .
 
-ARG RUST_VERSION=1.85
+# 1.86: icu_properties_data 2.2.0 (transitive of bee-rs) requires rustc 1.86.
+# bee-rs's own MSRV is 1.85 but its lockfile drags in the higher floor.
+ARG RUST_VERSION=1.86
 FROM rust:${RUST_VERSION}-bookworm
 
 # Pinned upstream refs. Override with --build-arg.
