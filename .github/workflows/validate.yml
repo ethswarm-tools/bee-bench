@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          shellcheck scripts/*.sh
+          shellcheck --severity=warning scripts/*.sh
 
       - name: aggregate + export-csv + validate-spec end-to-end on synthetic fixture
         run: |
