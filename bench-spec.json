@@ -12,61 +12,71 @@
     {
       "id": "cpu.keccak.chunk-hash",
       "kind": "cpu",
-      "params": [{"count": 10000, "chunk_bytes": 4096}],
+      "params": [{"count": 10000, "chunk_bytes": 4096, "iters_override": 20}],
       "doc": "Hash N 4096-byte payloads via the client's BMT chunk-address path. Per-call overhead dominates."
     },
     {
       "id": "cpu.keccak.bulk",
       "kind": "cpu",
-      "params": [{"size_mb": 100}],
+      "params": [{"size_mb": 100, "iters_override": 20}],
       "doc": "Hash one large buffer in a single keccak call. Throughput, not per-call overhead."
     },
     {
       "id": "cpu.bmt.file-root",
       "kind": "cpu",
-      "params_from": "sizes_mb_plus_large",
+      "params": [
+        {"size_mb": 1, "iters_override": 20},
+        {"size_mb": 10, "iters_override": 20},
+        {"size_mb": 100, "iters_override": 20},
+        {"size_mb": 1024, "large": true, "iters_override": 20}
+      ],
       "doc": "Compute Mantaray/BMT root for a buffer; no upload. The colleague's chunking-perf hypothesis."
     },
     {
       "id": "cpu.bmt.encrypted-file-root",
       "kind": "cpu",
-      "params_from": "sizes_mb_plus_large",
+      "params": [
+        {"size_mb": 1, "iters_override": 20},
+        {"size_mb": 10, "iters_override": 20},
+        {"size_mb": 100, "iters_override": 20},
+        {"size_mb": 1024, "large": true, "iters_override": 20}
+      ],
       "doc": "Same as cpu.bmt.file-root but with encryption. BMT input differs per chunk because of the per-chunk key prefix."
     },
     {
       "id": "cpu.ecdsa.sign-1000",
       "kind": "cpu",
-      "params": [{"count": 1000}],
+      "params": [{"count": 1000, "iters_override": 20}],
       "doc": "Sign 1000 32-byte digests with the eth-envelope scheme (all three clients identical). Tests the colleague's ECDSA-in-JS hypothesis."
     },
     {
       "id": "cpu.ecdsa.verify-1000",
       "kind": "cpu",
-      "params": [{"count": 1000}],
+      "params": [{"count": 1000, "iters_override": 20}],
       "doc": "Verify 1000 (digest, signature) pairs (recover public key under eth-envelope). Verify dominates feed reads. Pure-JS bigint ECDSA recover is the suspected pessimal case — likely worse than the 221x sign-side gap."
     },
     {
       "id": "cpu.identity.create",
       "kind": "cpu",
-      "params": [{"count": 1000}],
+      "params": [{"count": 1000, "iters_override": 20}],
       "doc": "Generate 1000 fresh secp256k1 identities (random 32 bytes → PrivateKey → public key → 20-byte ETH address). Same crypto-backend story as ECDSA but for keygen — point multiplication dominates."
     },
     {
       "id": "cpu.keccak.parallel",
       "kind": "cpu",
-      "params": [{"count": 10000, "chunk_bytes": 4096}],
+      "params": [{"count": 10000, "chunk_bytes": 4096, "iters_override": 20}],
       "doc": "Distribute 10000 BMT chunk hashes across NumCPU workers. Each worker generates + hashes its own slice. Reveals real CPU scaling: bee-go (goroutines) and bee-rs (std::thread) near-linear; bee-js uses Node Worker threads."
     },
     {
       "id": "cpu.manifest.hash-50files",
       "kind": "cpu",
-      "params": [{"files": 50, "file_bytes": 1024}],
+      "params": [{"files": 50, "file_bytes": 1024, "iters_override": 20}],
       "doc": "Offline manifest root for 50 small files (no upload)."
     },
     {
       "id": "cpu.manifest.lookup-large",
       "kind": "cpu",
-      "params": [{"entries": 5000, "lookups": 1000}],
+      "params": [{"entries": 5000, "lookups": 1000, "iters_override": 20}],
       "doc": "Build a Mantaray with 5000 path entries (outside timing), then time 1000 random Find/lookup calls. Trie-traversal hot path; each client implements Mantaray independently so divergence reveals lookup-cost differences."
     },
     {

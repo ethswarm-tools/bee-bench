@@ -1,0 +1,90 @@
+name: validate
+
+# Lightweight CI: validates the spec, the aggregator, and the report
+# pipeline without running the actual benchmark runners (which need
+# Go + Rust + Node + a Bee node + a funded Sepolia postage batch). The
+# full bench is run locally and committed via report.md / report.html /
+# report.csv / aggregate.json.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: bench-spec.json is valid JSON
+        run: node -e "JSON.parse(require('fs').readFileSync('bench-spec.json','utf8'))"
+
+      - name: scripts parse as valid ES modules
+        run: |
+          for f in scripts/aggregate.mjs scripts/export-csv.mjs scripts/validate-spec.mjs scripts/compare.mjs; do
+            node --check "$f"
+          done
+
+      - name: shell scripts pass shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck scripts/*.sh
+
+      - name: aggregate + export-csv + validate-spec end-to-end on synthetic fixture
+        run: |
+          mkdir -p _ci_results
+          cat > _ci_results/go-fixture.json <<'JSON'
+          {
+            "runner": "go",
+            "client_version": "github.com/ethswarm-tools/bee-go@v1.1.0",
+            "bee_version": "2.6.0",
+            "bench_spec_hash": "sha256:ci-fixture",
+            "started_at": "2026-05-02T00:00:00Z",
+            "host": {"os":"linux","arch":"amd64","cpu":"ci","num_cpu":2},
+            "bee_url": "http://localhost:1633",
+            "batch_id": "0xci",
+            "iters": 5,
+            "results": [
+              {
+                "case":"cpu.keccak.chunk-hash",
+                "param":{"count":1000,"chunk_bytes":4096,"iters_override":5},
+                "iters_ms":[100,101,99,102,98],
+                "median_ms":100, "min_ms":98, "max_ms":102, "mean_ms":100,
+                "throughput_mbps":40, "peak_rss_mb":50, "notes":"ci"
+              }
+            ]
+          }
+          JSON
+          cp _ci_results/go-fixture.json _ci_results/rs-fixture.json
+          sed -i 's/"runner": "go"/"runner": "rs"/' _ci_results/rs-fixture.json
+          cp _ci_results/go-fixture.json _ci_results/js-fixture.json
+          sed -i 's/"runner": "go"/"runner": "js"/' _ci_results/js-fixture.json
+
+          node scripts/aggregate.mjs --results _ci_results --out _ci_results
+          node scripts/export-csv.mjs --in _ci_results/aggregate.json --out _ci_results/report.csv
+
+          test -s _ci_results/aggregate.json
+          test -s _ci_results/report.md
+          test -s _ci_results/report.html
+          test -s _ci_results/report.csv
+          head -1 _ci_results/report.csv | grep -q '^case,param,runner'
+          grep -q 'cpu.keccak.chunk-hash' _ci_results/report.md
+
+      - name: spec hashes recorded in committed aggregate.json are consistent
+        run: |
+          # If the committed aggregate.json was produced from runs that used
+          # different bench-spec.json hashes, comparisons would be invalid.
+          # The aggregator emits a `spec_hashes` array; assert it has exactly
+          # one entry.
+          n=$(node -e "console.log(JSON.parse(require('fs').readFileSync('results/aggregate.json','utf8')).spec_hashes.length)")
+          if [ "$n" != "1" ]; then
+            echo "::error::results/aggregate.json spans $n bench-spec.json hashes — re-run all three runners with the same spec before merging"
+            exit 1
+          fi
