@@ -1,5 +1,9 @@
 fixtures/
-results/
+results/*
+!results/INDEX.md
+!results/report.md
+!results/report.html
+!results/aggregate.json
 node_modules/
 runner-go/bench
 runner-rs/target/

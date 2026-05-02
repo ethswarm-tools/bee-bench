@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bee-bench report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  body { font: 14px/1.5 -apple-system, system-ui, sans-serif; max-width: 1300px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { margin-bottom: 0.25rem; }
+  h2 { margin-top: 2.5rem; padding-top: 0.5rem; border-top: 1px solid #e2e8f0; }
+  .meta { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+  .case { margin-bottom: 2.5rem; padding: 1rem 1.25rem; border: 1px solid #e2e8f0; border-radius: 8px; }
+  .case h3 { margin: 0 0 0.5rem; font-family: ui-monospace, monospace; font-size: 1rem; }
+  .doc { color: #666; font-size: 0.85rem; margin-bottom: 0.75rem; font-style: italic; }
+  .fit { margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 6px; }
+  .fit-title { font-size: 0.85rem; margin-bottom: 0.25rem; }
+  .fit table { margin-top: 0.25rem; }
+  .group-note { color: #666; font-size: 0.9rem; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 6px; }
+  .chart-wrap { height: 320px; position: relative; }
+  table { border-collapse: collapse; margin-top: 0.5rem; font-size: 0.9rem; }
+  th, td { padding: 4px 10px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+  th { background: #f8fafc; }
+  .skip { color: #999; font-style: italic; }
+  .warn { background: #fef3c7; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem; }
+  .winner { font-weight: bold; color: #047857; }
+  .sub { font-size: 0.8em; color: #555; }
+  .scoreboard { background: #f8fafc; padding: 1rem; border-radius: 8px; }
+  .speed-disclaimer { background: #fff7ed; border: 2px solid #f97316; padding: 1rem 1.25rem; border-radius: 8px; margin: 1rem 0 1.5rem; }
+  .speed-disclaimer h2 { margin: 0 0 0.5rem; color: #c2410c; font-size: 1.05rem; }
+  .speed-disclaimer p { margin: 0.4rem 0; }
+  .nav-links { color: #444; font-size: 0.95rem; margin-bottom: 0.75rem; }
+  .nav-links a { margin-right: 0.5rem; }
+</style>
+</head>
+<body>
+<h1>bee-bench report</h1>
+<div class="meta">Generated 2026-05-02T16:34:33.000Z</div>
+<div class="nav-links">See also: <a href="INDEX.md">results landing page</a> · <a href="../FINDINGS.md">findings (qualitative)</a> · <a href="../README.md">README (how to run)</a></div>
+<div class="speed-disclaimer">
+  <h2>⚠ MB/s numbers are NOT Swarm-network throughput</h2>
+  <p>Every byte/sec figure in this report is <strong>client ↔ local Bee node</strong> over loopback HTTP, NOT real Swarm-network throughput:</p>
+  <ul>
+    <li><strong>Uploads</strong> measure how fast the client pushes data into the local Bee node's store under deferred-upload mode. The chunks are still being pushed to the Swarm network in the background after the call returns.</li>
+    <li><strong>Downloads</strong> of references uploaded earlier in the same run hit the local Bee cache. Numbers like "253 MB/s" are local-store reads, not network fetches.</li>
+  </ul>
+  <p>For real Swarm-network numbers, fetch from a Bee that doesn't have the chunks and re-run uploads with <code>deferred: false</code>. See <a href="../FINDINGS.md#-measurement-scope-caveat-read-first">FINDINGS § measurement scope</a>.</p>
+</div>
+
+
+<h2>Scoreboard</h2>
+<div class="scoreboard">
+  <p>Geometric mean of <em>median-time ratio to fastest runner per row</em>. 1.00x = fastest.</p>
+  <table id="scoreboardTable"></table>
+</div>
+
+<div id="root"></div>
+
+<script>
+const data = {"generated_at":"2026-05-02T16:34:33.000Z","spec_hashes":["sha256:2c791c9dc18123ff76d4929377ce9e8c9bb157fec05c634d7b1a046fdce27172"],"runners":{"js":{"client_version":"bee-js (file:../../bee-js)","bee_version":"2.7.2-rc1-83612d37","started_at":"2026-05-02T12:51:01.392Z","host":{"os":"linux","arch":"x64","cpu":"Intel(R) Core(TM) Ultra 9 275HX","num_cpu":24}},"rs":{"client_version":"bee-rs 0.1.0 (path)","bee_version":"2.7.2-rc1-83612d37","started_at":"2026-05-02T11:51:55.620519232+00:00","host":{"os":"linux","arch":"x86_64","cpu":"Intel(R) Core(TM) Ultra 9 275HX","num_cpu":24}},"go":{"client_version":"bee-go (replace ../../bee-go)","bee_version":"2.7.2-rc1-83612d37","started_at":"2026-05-02T10:19:43Z","host":{"os":"linux","arch":"amd64","cpu":"Intel(R) Core(TM) Ultra 9 275HX","num_cpu":24}}},"cases":[{"case":"cpu.keccak.chunk-hash","rows":[{"param":{"chunk_bytes":4096,"count":10000},"runners":{"go":{"case":"cpu.keccak.chunk-hash","param":{"chunk_bytes":4096,"count":10000},"iters_ms":[653.44,597.194,570.778,604.681,584.839],"median_ms":597.194,"min_ms":570.778,"max_ms":653.44,"mean_ms":602.186,"throughput_mbps":65.41,"peak_rss_mb":234.3,"notes":"count=10000 chunk_bytes=4096"},"rs":{"case":"cpu.keccak.chunk-hash","param":{"chunk_bytes":4096,"count":10000},"iters_ms":[499.056,497.041,497.194,494.912,496.45],"median_ms":497.041,"min_ms":494.912,"max_ms":499.056,"mean_ms":496.931,"throughput_mbps":78.59,"peak_rss_mb":117.5,"notes":"count=10000 chunk_bytes=4096"},"js":{"case":"cpu.keccak.chunk-hash","param":{"count":10000,"chunk_bytes":4096},"iters_ms":[6208.743,6279.875,6328.263,6319.711,6331.426],"median_ms":6319.711,"min_ms":6208.743,"max_ms":6331.426,"mean_ms":6293.604,"peak_rss_mb":222,"notes":"","throughput_mbps":6.18}}}],"doc":"Hash N 4096-byte payloads via the client's BMT chunk-address path. Per-call overhead dominates."},{"case":"cpu.keccak.bulk","rows":[{"param":{"size_mb":100},"runners":{"go":{"case":"cpu.keccak.bulk","param":{"size_mb":100},"iters_ms":[287.217,285.002,284.816,286.797,284.203],"median_ms":285.002,"min_ms":284.203,"max_ms":287.217,"mean_ms":285.607,"throughput_mbps":350.87,"peak_rss_mb":234.3},"rs":{"case":"cpu.keccak.bulk","param":{"size_mb":100},"iters_ms":[252.327,252.746,251.743,253.468,253.84],"median_ms":252.746,"min_ms":251.743,"max_ms":253.84,"mean_ms":252.825,"throughput_mbps":395.65,"peak_rss_mb":117.5},"js":{"case":"cpu.keccak.bulk","param":{"size_mb":100},"iters_ms":[3134.411,2850.857,2900.202,2998.477,3036.027],"median_ms":2998.477,"min_ms":2850.857,"max_ms":3134.411,"mean_ms":2983.995,"peak_rss_mb":1426.2,"notes":"","throughput_mbps":33.35}}}],"doc":"Hash one large buffer in a single keccak call. Throughput, not per-call overhead."},{"case":"cpu.bmt.file-root","rows":[{"param":{"size_mb":1},"runners":{"go":{"case":"cpu.bmt.file-root","param":{"size_mb":1},"iters_ms":[20.946,20.873,19.846,19.905,19.779],"median_ms":19.905,"min_ms":19.779,"max_ms":20.946,"mean_ms":20.27,"throughput_mbps":50.24,"peak_rss_mb":234.4},"rs":{"case":"cpu.bmt.file-root","param":{"size_mb":1},"iters_ms":[15.848,15.721,13.54,13.121,12.827],"median_ms":13.54,"min_ms":12.827,"max_ms":15.848,"mean_ms":14.211,"throughput_mbps":73.86,"peak_rss_mb":117.5},"js":{"case":"cpu.bmt.file-root","param":{"size_mb":1},"iters_ms":[177.922,178.532,174.543,176.691,181.268],"median_ms":177.922,"min_ms":174.543,"max_ms":181.268,"mean_ms":177.791,"peak_rss_mb":1426.5,"notes":"","throughput_mbps":5.62}}},{"param":{"size_mb":10},"runners":{"go":{"case":"cpu.bmt.file-root","param":{"size_mb":10},"iters_ms":[154.691,152.136,190.44,160.783,153.515],"median_ms":154.691,"min_ms":152.136,"max_ms":190.44,"mean_ms":162.313,"throughput_mbps":64.65,"peak_rss_mb":234.8},"rs":{"case":"cpu.bmt.file-root","param":{"size_mb":10},"iters_ms":[129.399,128.946,129.809,130.046,129.292],"median_ms":129.399,"min_ms":128.946,"max_ms":130.046,"mean_ms":129.498,"throughput_mbps":77.28,"peak_rss_mb":117.5},"js":{"case":"cpu.bmt.file-root","param":{"size_mb":10},"iters_ms":[1762.451,1656.899,1653.58,1663.195,1661.913],"median_ms":1661.913,"min_ms":1653.58,"max_ms":1762.451,"mean_ms":1679.608,"peak_rss_mb":1426.4,"notes":"","throughput_mbps":6.02}}},{"param":{"size_mb":100},"runners":{"go":{"case":"cpu.bmt.file-root","param":{"size_mb":100},"iters_ms":[1537.617,1569.908,1536.595,1536.34,1595.246],"median_ms":1537.617,"min_ms":1536.34,"max_ms":1595.246,"mean_ms":1555.141,"throughput_mbps":65.04,"peak_rss_mb":234.9},"rs":{"case":"cpu.bmt.file-root","param":{"size_mb":100},"iters_ms":[1295.427,1294.359,1293.885,1294.994,1294.737],"median_ms":1294.737,"min_ms":1293.885,"max_ms":1295.427,"mean_ms":1294.68,"throughput_mbps":77.24,"peak_rss_mb":117.5},"js":{"case":"cpu.bmt.file-root","param":{"size_mb":100},"iters_ms":[17077.992,16904.61,16919.375,17185.631,17537.551],"median_ms":17077.992,"min_ms":16904.61,"max_ms":17537.551,"mean_ms":17125.032,"peak_rss_mb":1426.4,"notes":"","throughput_mbps":5.86}}}],"doc":"Compute Mantaray/BMT root for a buffer; no upload. The colleague's chunking-perf hypothesis."},{"case":"cpu.bmt.encrypted-file-root","rows":[{"param":{"size_mb":1},"runners":{"go":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":1},"iters_ms":null,"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":234.9,"skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-go"},"rs":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":1},"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":117.5,"skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-rs"},"js":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":1},"iters_ms":[],"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":206,"notes":"","skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-js"}}},{"param":{"size_mb":10},"runners":{"go":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":10},"iters_ms":null,"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":234.9,"skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-go"},"rs":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":10},"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":117.5,"skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-rs"},"js":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":10},"iters_ms":[],"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":206,"notes":"","skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-js"}}},{"param":{"size_mb":100},"runners":{"go":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":100},"iters_ms":null,"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":234.9,"skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-go"},"rs":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":100},"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":117.5,"skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-rs"},"js":{"case":"cpu.bmt.encrypted-file-root","param":{"size_mb":100},"iters_ms":[],"median_ms":0,"min_ms":0,"max_ms":0,"mean_ms":0,"peak_rss_mb":206,"notes":"","skipped":true,"skip_reason":"no offline encryption-aware chunker API in bee-js"}}}],"doc":"Same as cpu.bmt.file-root but with encryption. BMT input differs per chunk because of the per-chunk key prefix."},{"case":"cpu.ecdsa.sign-1000","rows":[{"param":{"count":1000},"runners":{"go":{"case":"cpu.ecdsa.sign-1000","param":{"count":1000},"iters_ms":[114.085,72.783,72.733,73.074,72.804],"median_ms":72.804,"min_ms":72.733,"max_ms":114.085,"mean_ms":81.096,"peak_rss_mb":235,"notes":"count=1000"},"rs":{"case":"cpu.ecdsa.sign-1000","param":{"count":1000},"iters_ms":[118.265,117.862,117.815,117.758,117.763],"median_ms":117.815,"min_ms":117.758,"max_ms":118.265,"mean_ms":117.893,"peak_rss_mb":117.7,"notes":"count=1000"},"js":{"case":"cpu.ecdsa.sign-1000","param":{"count":1000},"iters_ms":[16300.52,16694.163,16140.134,16176.529,16121.296],"median_ms":16176.529,"min_ms":16121.296,"max_ms":16694.163,"mean_ms":16286.529,"peak_rss_mb":238.4,"notes":"count=1000"}}}],"doc":"Sign 1000 32-byte digests with the eth-envelope scheme (all three clients identical). Tests the colleague's ECDSA-in-JS hypothesis."},{"case":"cpu.ecdsa.verify-1000","rows":[{"param":{"count":1000},"runners":{"go":{"case":"cpu.ecdsa.verify-1000","param":{"count":1000},"iters_ms":[51.779,50.573,50.72,50.519,50.68],"median_ms":50.68,"min_ms":50.519,"max_ms":51.779,"mean_ms":50.854,"peak_rss_mb":236,"notes":"count=1000"},"rs":{"case":"cpu.ecdsa.verify-1000","param":{"count":1000},"iters_ms":[224.847,224.683,224.808,224.788,224.583],"median_ms":224.788,"min_ms":224.583,"max_ms":224.847,"mean_ms":224.742,"peak_rss_mb":117.7,"notes":"count=1000"},"js":{"case":"cpu.ecdsa.verify-1000","param":{"count":1000},"iters_ms":[47516.64,47890.182,48129.132,48246.95,48238.804],"median_ms":48129.132,"min_ms":47516.64,"max_ms":48246.95,"mean_ms":48004.342,"peak_rss_mb":245.9,"notes":"count=1000"}}}],"doc":"Verify 1000 (digest, signature) pairs (recover public key under eth-envelope). Verify dominates feed reads. Pure-JS bigint ECDSA recover is the suspected pessimal case — likely worse than the 221x sign-side gap."},{"case":"cpu.identity.create","rows":[{"param":{"count":1000},"runners":{"go":{"case":"cpu.identity.create","param":{"count":1000},"iters_ms":[51.366,44.486,44.708,44.537,45.186],"median_ms":44.708,"min_ms":44.486,"max_ms":51.366,"mean_ms":46.057,"peak_rss_mb":236,"notes":"count=1000"},"rs":{"case":"cpu.identity.create","param":{"count":1000},"iters_ms":[66.407,66.298,66.123,66.017,66.013],"median_ms":66.123,"min_ms":66.013,"max_ms":66.407,"mean_ms":66.172,"peak_rss_mb":117.7,"notes":"count=1000"},"js":{"case":"cpu.identity.create","param":{"count":1000},"iters_ms":[16140.572,16161.829,16180.697,16372.035,16187.891],"median_ms":16180.697,"min_ms":16140.572,"max_ms":16372.035,"mean_ms":16208.605,"peak_rss_mb":246.1,"notes":"count=1000"}}}],"doc":"Generate 1000 fresh secp256k1 identities (random 32 bytes → PrivateKey → public key → 20-byte ETH address). Same crypto-backend story as ECDSA but for keygen — point multiplication dominates."},{"case":"cpu.keccak.parallel","rows":[{"param":{"chunk_bytes":4096,"count":10000},"runners":{"go":{"case":"cpu.keccak.parallel","param":{"chunk_bytes":4096,"count":10000},"iters_ms":[57.274,51.576,48.104,42.514,52.627],"median_ms":51.576,"min_ms":42.514,"max_ms":57.274,"mean_ms":50.419,"throughput_mbps":757.38,"peak_rss_mb":242.3,"notes":"count=10000 workers=24"},"rs":{"case":"cpu.keccak.parallel","param":{"count":10000,"chunk_bytes":4096},"iters_ms":[59.75,56.907,46.578,41.248,43.553],"median_ms":46.578,"min_ms":41.248,"max_ms":59.75,"mean_ms":49.607,"throughput_mbps":838.65,"peak_rss_mb":118.5,"notes":"count=10000 workers=24"},"js":{"case":"cpu.keccak.parallel","param":{"count":10000,"chunk_bytes":4096},"iters_ms":[547.872,566.085,537.451,553.767,554.773],"median_ms":553.767,"min_ms":537.451,"max_ms":566.085,"mean_ms":551.99,"peak_rss_mb":922.3,"notes":"count=10000 workers=24","throughput_mbps":70.54}}}],"doc":"Distribute 10000 BMT chunk hashes across NumCPU workers. Each worker generates + hashes its own slice. Reveals real CPU scaling: bee-go (goroutines) and bee-rs (std::thread) near-linear; bee-js uses Node Worker threads."},{"case":"cpu.manifest.hash-50files","rows":[{"param":{"file_bytes":1024,"files":50},"runners":{"go":{"case":"cpu.manifest.hash-50files","param":{"file_bytes":1024,"files":50},"iters_ms":[7.759,7.755,7.739,7.727,7.748],"median_ms":7.748,"min_ms":7.727,"max_ms":7.759,"mean_ms":7.746,"throughput_mbps":6.3,"peak_rss_mb":242.4,"notes":"files=50 bytes_each=1024"},"rs":{"case":"cpu.manifest.hash-50files","param":{"file_bytes":1024,"files":50},"iters_ms":[9.268,9.389,9.38,9.17,8.776],"median_ms":9.268,"min_ms":8.776,"max_ms":9.389,"mean_ms":9.197,"throughput_mbps":5.27,"peak_rss_mb":118.4,"notes":"files=50 bytes_each=1024"},"js":{"case":"cpu.manifest.hash-50files","param":{"files":50,"file_bytes":1024},"iters_ms":[79.473,85.5,82.244,81.614,79.116],"median_ms":81.614,"min_ms":79.116,"max_ms":85.5,"mean_ms":81.589,"peak_rss_mb":252.8,"notes":"files=50 bytes_each=1024","throughput_mbps":0.6}}}],"doc":"Offline manifest root for 50 small files (no upload)."},{"case":"cpu.manifest.lookup-large","rows":[{"param":{"entries":5000,"lookups":1000},"runners":{"go":{"case":"cpu.manifest.lookup-large","param":{"entries":5000,"lookups":1000},"iters_ms":[0.511,0.438,0.459,0.44,0.442],"median_ms":0.442,"min_ms":0.438,"max_ms":0.511,"mean_ms":0.458,"peak_rss_mb":242.4,"notes":"entries=5000 lookups=1000"},"rs":{"case":"cpu.manifest.lookup-large","param":{"lookups":1000,"entries":5000},"iters_ms":[0.36,0.299,0.298,0.286,0.299],"median_ms":0.299,"min_ms":0.286,"max_ms":0.36,"mean_ms":0.308,"peak_rss_mb":123.1,"notes":"entries=5000 lookups=1000"},"js":{"case":"cpu.manifest.lookup-large","param":{"entries":5000,"lookups":1000},"iters_ms":[3.042,5.518,2.244,2.146,2.111],"median_ms":2.244,"min_ms":2.111,"max_ms":5.518,"mean_ms":3.012,"peak_rss_mb":277.1,"notes":"entries=5000 lookups=1000"}}}],"doc":"Build a Mantaray with 5000 path entries (outside timing), then time 1000 random Find/lookup calls. Trie-traversal hot path; each client implements Mantaray independently so divergence reveals lookup-cost differences."},{"case":"net.stamps.list","rows":[{"param":{},"runners":{"go":{"case":"net.stamps.list","param":{},"iters_ms":[1.129,0.8,0.929,0.694,0.987],"median_ms":0.929,"min_ms":0.694,"max_ms":1.129,"mean_ms":0.908,"peak_rss_mb":242.5},"rs":{"case":"net.stamps.list","param":{},"iters_ms":[0.397,0.305,0.335,0.28,0.322],"median_ms":0.322,"min_ms":0.28,"max_ms":0.397,"mean_ms":0.328,"peak_rss_mb":123.2},"js":{"case":"net.stamps.list","param":{},"iters_ms":[2.684,2.749,2.337,2.568,1.972],"median_ms":2.568,"min_ms":1.972,"max_ms":2.749,"mean_ms":2.462,"peak_rss_mb":273.2,"notes":""}}}],"doc":"GET /stamps. Calibration / control case. If runners diverge wildly here, the rig is mis-set. Run early before Bee's sync queue builds up."},{"case":"net.stamps.concurrent","rows":[{"param":{"count":200},"runners":{"go":{"case":"net.stamps.concurrent","param":{"count":200},"iters_ms":[44.972,49.617,50.713,51.198,41.314],"median_ms":49.617,"min_ms":41.314,"max_ms":51.198,"mean_ms":47.563,"peak_rss_mb":247.2,"notes":"count=200"},"rs":{"case":"net.stamps.concurrent","param":{"count":200},"iters_ms":[5.241,3.985,3.585,3.703,3.927],"median_ms":3.927,"min_ms":3.585,"max_ms":5.241,"mean_ms":4.088,"peak_rss_mb":129.2,"notes":"count=200"},"js":{"case":"net.stamps.concurrent","param":{"count":200},"iters_ms":[104.653,107.158,84.252,102.923,96.734],"median_ms":102.923,"min_ms":84.252,"max_ms":107.158,"mean_ms":99.144,"peak_rss_mb":279,"notes":"count=200"}}}],"doc":"Fire 200 parallel GET /stamps. Bee returns instantly; spread exposes pure HTTP-client overhead — connection pool size, keepalive default (axios's default-off vs reqwest/Go's default-on), async dispatch."},{"case":"net.feed.write-read.fresh","rows":[{"param":{},"runners":{"go":{"case":"net.feed.write-read.fresh","param":{},"iters_ms":[62731.12,62951.052,62028.171,62821.117,62249.861],"median_ms":62731.12,"min_ms":62028.171,"max_ms":62951.052,"mean_ms":62556.264,"peak_rss_mb":247.3},"rs":{"case":"net.feed.write-read.fresh","param":{},"iters_ms":[94608.234,71775.98,94653.406,47863.805,77758.471],"median_ms":77758.471,"min_ms":47863.805,"max_ms":94653.406,"mean_ms":77331.979,"peak_rss_mb":127.1},"js":{"case":"net.feed.write-read.fresh","param":{},"iters_ms":[104230.397,95102.97,125433.366,13973.803,71394.295],"median_ms":95102.97,"min_ms":13973.803,"max_ms":125433.366,"mean_ms":82026.966,"peak_rss_mb":224.3,"notes":""}}}],"doc":"Write feed update at next index, then read latest with retry-with-backoff (Bee /feeds endpoint can take 30-60s on Sepolia). Run BEFORE heavy upload cases — when Bee's sync queue is busy, /feeds returns 404."},{"case":"net.feed.write-read.warm","rows":[{"param":{"reads":5},"runners":{"go":{"case":"net.feed.write-read.warm","param":{"reads":5},"iters_ms":[5015.773,5015.535,5018.836,5018.737,5015.471],"median_ms":5015.773,"min_ms":5015.471,"max_ms":5018.836,"mean_ms":5016.87,"peak_rss_mb":160.1,"notes":"reads=5"},"rs":{"case":"net.feed.write-read.warm","param":{"reads":5},"iters_ms":[5012.895,5014.6,5015.273,5014.738,5015.75],"median_ms":5014.738,"min_ms":5012.895,"max_ms":5015.75,"mean_ms":5014.651,"peak_rss_mb":127.1,"notes":"reads=5"},"js":{"case":"net.feed.write-read.warm","param":{"reads":5},"iters_ms":[5021.385,5017.03,5017.281,5018.627,5020.618],"median_ms":5018.627,"min_ms":5017.03,"max_ms":5021.385,"mean_ms":5018.988,"peak_rss_mb":225.4,"notes":"reads=5"}}}],"doc":"After fresh read, time N subsequent reads against the same feed (Bee cache warm)."},{"case":"net.bzz.upload","rows":[{"param":{"size_mb":1},"runners":{"go":{"case":"net.bzz.upload","param":{"size_mb":1},"iters_ms":[93.096,97.967,103.987,111.48,90.417],"median_ms":97.967,"min_ms":90.417,"max_ms":111.48,"mean_ms":99.389,"throughput_mbps":10.21,"peak_rss_mb":152.7},"rs":{"case":"net.bzz.upload","param":{"size_mb":1},"iters_ms":[92.063,95.497,95.84,88.352,91.381],"median_ms":92.063,"min_ms":88.352,"max_ms":95.84,"mean_ms":92.627,"throughput_mbps":10.86,"peak_rss_mb":127.7},"js":{"case":"net.bzz.upload","param":{"size_mb":1},"iters_ms":[102.627,101.728,105.075,108.518,106.733],"median_ms":105.075,"min_ms":101.728,"max_ms":108.518,"mean_ms":104.936,"peak_rss_mb":232.9,"notes":"","throughput_mbps":9.52}}},{"param":{"size_mb":10},"runners":{"go":{"case":"net.bzz.upload","param":{"size_mb":10},"iters_ms":[966.595,940.443,939.877,1014.647,992.819],"median_ms":966.595,"min_ms":939.877,"max_ms":1014.647,"mean_ms":970.876,"throughput_mbps":10.35,"peak_rss_mb":164.9},"rs":{"case":"net.bzz.upload","param":{"size_mb":10},"iters_ms":[897.011,880.875,908.158,866.006,881.386],"median_ms":881.386,"min_ms":866.006,"max_ms":908.158,"mean_ms":886.687,"throughput_mbps":11.35,"peak_rss_mb":146.7},"js":{"case":"net.bzz.upload","param":{"size_mb":10},"iters_ms":[975.584,967.431,1023.635,960.757,969.873],"median_ms":969.873,"min_ms":960.757,"max_ms":1023.635,"mean_ms":979.456,"peak_rss_mb":320.5,"notes":"","throughput_mbps":10.31}}},{"param":{"size_mb":100},"runners":{"go":{"case":"net.bzz.upload","param":{"size_mb":100},"iters_ms":[10122.827,9831.422,9892.975,9507.552,10140.852],"median_ms":9892.975,"min_ms":9507.552,"max_ms":10140.852,"mean_ms":9899.126,"throughput_mbps":10.11,"peak_rss_mb":366},"rs":{"case":"net.bzz.upload","param":{"size_mb":100},"iters_ms":[10012.528,9353.224,9422.054,9360.814,9364.328],"median_ms":9364.328,"min_ms":9353.224,"max_ms":10012.528,"mean_ms":9502.59,"throughput_mbps":10.68,"peak_rss_mb":326.9},"js":{"case":"net.bzz.upload","param":{"size_mb":100},"iters_ms":[11545.124,10011.685,9732.54,9837.895,9837.514],"median_ms":9837.895,"min_ms":9732.54,"max_ms":11545.124,"mean_ms":10192.952,"peak_rss_mb":1208.3,"notes":"","throughput_mbps":10.16}}}],"doc":"POST /bzz from in-memory salted buffer. Per-iter salt prefix → unique reference → no Bee dedup."},{"case":"net.bzz.upload.encrypted","rows":[{"param":{"size_mb":1},"runners":{"go":{"case":"net.bzz.upload.encrypted","param":{"size_mb":1},"iters_ms":[306.05,285.389,294.194,290.925,291.301],"median_ms":291.301,"min_ms":285.389,"max_ms":306.05,"mean_ms":293.572,"throughput_mbps":3.43,"peak_rss_mb":366},"rs":{"case":"net.bzz.upload.encrypted","param":{"size_mb":1},"iters_ms":[244.194,250.044,246.335,249.602,237.314],"median_ms":246.335,"min_ms":237.314,"max_ms":250.044,"mean_ms":245.498,"throughput_mbps":4.06,"peak_rss_mb":127.7},"js":{"case":"net.bzz.upload.encrypted","param":{"size_mb":1},"iters_ms":[266.832,270.28,269.006,276.786,273.362],"median_ms":270.28,"min_ms":266.832,"max_ms":276.786,"mean_ms":271.253,"peak_rss_mb":1110.3,"notes":"","throughput_mbps":3.7}}},{"param":{"size_mb":10},"runners":{"go":{"case":"net.bzz.upload.encrypted","param":{"size_mb":10},"iters_ms":[3215.003,3243.425,3265.816,3194.797,3129.286],"median_ms":3215.003,"min_ms":3129.286,"max_ms":3265.816,"mean_ms":3209.665,"throughput_mbps":3.11,"peak_rss_mb":366.1},"rs":{"case":"net.bzz.upload.encrypted","param":{"size_mb":10},"iters_ms":[2395.354,2408.715,2427.044,2446.606,2415.58],"median_ms":2415.58,"min_ms":2395.354,"max_ms":2446.606,"mean_ms":2418.66,"throughput_mbps":4.14,"peak_rss_mb":146.7},"js":{"case":"net.bzz.upload.encrypted","param":{"size_mb":10},"iters_ms":[2829.115,2793.794,2837.959,2932.366,2897.023],"median_ms":2837.959,"min_ms":2793.794,"max_ms":2932.366,"mean_ms":2858.051,"peak_rss_mb":327.7,"notes":"","throughput_mbps":3.52}}},{"param":{"size_mb":100},"runners":{"go":{"case":"net.bzz.upload.encrypted","param":{"size_mb":100},"iters_ms":[32564.922,33933.926,33072.454,33677.215,33065.733],"median_ms":33072.454,"min_ms":32564.922,"max_ms":33933.926,"mean_ms":33262.85,"throughput_mbps":3.02,"peak_rss_mb":466.5},"rs":{"case":"net.bzz.upload.encrypted","param":{"size_mb":100},"iters_ms":[21367.065,22966.466,21041.679,21365.569,23961.004],"median_ms":21367.065,"min_ms":21041.679,"max_ms":23961.004,"mean_ms":22140.357,"throughput_mbps":4.68,"peak_rss_mb":326.9},"js":{"case":"net.bzz.upload.encrypted","param":{"size_mb":100},"iters_ms":[28659.641,29569.869,30183.716,31346.256,30502.17],"median_ms":30183.716,"min_ms":28659.641,"max_ms":31346.256,"mean_ms":30052.33,"peak_rss_mb":1207.7,"notes":"","throughput_mbps":3.31}}}],"doc":"Same as net.bzz.upload but with encrypt=true. Skipped at 1GB by default."},{"case":"net.bytes.upload","rows":[{"param":{"size_mb":1},"runners":{"go":{"case":"net.bytes.upload","param":{"size_mb":1},"iters_ms":[95.389,101.416,99.815,91.909,88.545],"median_ms":95.389,"min_ms":88.545,"max_ms":101.416,"mean_ms":95.415,"throughput_mbps":10.48,"peak_rss_mb":375.2},"rs":{"case":"net.bytes.upload","param":{"size_mb":1},"iters_ms":[89.65,103.075,99.902,96.421,96.716],"median_ms":96.716,"min_ms":89.65,"max_ms":103.075,"mean_ms":97.153,"throughput_mbps":10.34,"peak_rss_mb":127.7},"js":{"case":"net.bytes.upload","param":{"size_mb":1},"iters_ms":[101.356,101.926,101.485,107.088,110.787],"median_ms":101.926,"min_ms":101.356,"max_ms":110.787,"mean_ms":104.528,"peak_rss_mb":1107.7,"notes":"","throughput_mbps":9.81}}},{"param":{"size_mb":10},"runners":{"go":{"case":"net.bytes.upload","param":{"size_mb":10},"iters_ms":[897.977,891.231,900.203,901.912,895.846],"median_ms":897.977,"min_ms":891.231,"max_ms":901.912,"mean_ms":897.434,"throughput_mbps":11.14,"peak_rss_mb":375.2},"rs":{"case":"net.bytes.upload","param":{"size_mb":10},"iters_ms":[892.559,937.28,891.029,923.506,861.266],"median_ms":892.559,"min_ms":861.266,"max_ms":937.28,"mean_ms":901.128,"throughput_mbps":11.2,"peak_rss_mb":146.7},"js":{"case":"net.bytes.upload","param":{"size_mb":10},"iters_ms":[1016.494,1013.075,1038.743,1006.704,1023.393],"median_ms":1016.494,"min_ms":1006.704,"max_ms":1038.743,"mean_ms":1019.682,"peak_rss_mb":347.6,"notes":"","throughput_mbps":9.84}}},{"param":{"size_mb":100},"runners":{"go":{"case":"net.bytes.upload","param":{"size_mb":100},"iters_ms":[12397.669,11812.503,10785.176,10643.907,10540.911],"median_ms":10785.176,"min_ms":10540.911,"max_ms":12397.669,"mean_ms":11236.033,"throughput_mbps":9.27,"peak_rss_mb":467.1},"rs":{"case":"net.bytes.upload","param":{"size_mb":100},"iters_ms":[10004.085,10037.98,9923.021,10542.702,9906.531],"median_ms":10004.085,"min_ms":9906.531,"max_ms":10542.702,"mean_ms":10082.864,"throughput_mbps":10,"peak_rss_mb":326.9},"js":{"case":"net.bytes.upload","param":{"size_mb":100},"iters_ms":[10281.591,10544.366,10814.352,10423.321,11389.202],"median_ms":10544.366,"min_ms":10281.591,"max_ms":11389.202,"mean_ms":10690.566,"peak_rss_mb":1247.6,"notes":"","throughput_mbps":9.48}}}],"doc":"POST /bytes (raw, no manifest) — isolates manifest serialization cost vs net.bzz.upload."},{"case":"net.bzz.download","rows":[{"param":{"size_mb":1},"runners":{"go":{"case":"net.bzz.download","param":{"size_mb":1},"iters_ms":[5.604,3.964,4.158,4.414,3.58],"median_ms":4.158,"min_ms":3.58,"max_ms":5.604,"mean_ms":4.344,"throughput_mbps":240.5,"peak_rss_mb":467.1},"rs":{"case":"net.bzz.download","param":{"size_mb":1},"iters_ms":[6.089,5.547,5.524,4.8,4.489],"median_ms":5.524,"min_ms":4.489,"max_ms":6.089,"mean_ms":5.29,"throughput_mbps":181.03,"peak_rss_mb":128.1},"js":{"case":"net.bzz.download","param":{"size_mb":1},"iters_ms":[11.814,10.296,9.781,9.955,9.885],"median_ms":9.955,"min_ms":9.781,"max_ms":11.814,"mean_ms":10.346,"peak_rss_mb":1147.6,"notes":"","throughput_mbps":100.45}}},{"param":{"size_mb":10},"runners":{"go":{"case":"net.bzz.download","param":{"size_mb":10},"iters_ms":[47.197,27.69,25.524,26.284,26.153],"median_ms":26.284,"min_ms":25.524,"max_ms":47.197,"mean_ms":30.57,"throughput_mbps":380.46,"peak_rss_mb":467.1},"rs":{"case":"net.bzz.download","param":{"size_mb":10},"iters_ms":[35.663,40.425,35.173,33.444,31.881],"median_ms":35.173,"min_ms":31.881,"max_ms":40.425,"mean_ms":35.317,"throughput_mbps":284.31,"peak_rss_mb":147.1},"js":{"case":"net.bzz.download","param":{"size_mb":10},"iters_ms":[73.773,74.087,79.689,82.234,74.548],"median_ms":74.548,"min_ms":73.773,"max_ms":82.234,"mean_ms":76.866,"peak_rss_mb":293.9,"notes":"","throughput_mbps":134.14}}},{"param":{"size_mb":100},"runners":{"go":{"case":"net.bzz.download","param":{"size_mb":100},"iters_ms":[415.037,396.199,414.527,431.185,437.083],"median_ms":415.037,"min_ms":396.199,"max_ms":437.083,"mean_ms":418.806,"throughput_mbps":240.94,"peak_rss_mb":242.5},"rs":{"case":"net.bzz.download","param":{"size_mb":100},"iters_ms":[379.704,387.387,402.848,426.215,395.028],"median_ms":395.028,"min_ms":379.704,"max_ms":426.215,"mean_ms":398.236,"throughput_mbps":253.15,"peak_rss_mb":327.3},"js":{"case":"net.bzz.download","param":{"size_mb":100},"iters_ms":[599.507,610.875,639.586,647.041,642.693],"median_ms":639.586,"min_ms":599.507,"max_ms":647.041,"mean_ms":627.941,"peak_rss_mb":669.2,"notes":"","throughput_mbps":156.35}}}],"doc":"GET /bzz/<ref>. Drains body to counting sink — never buffers full response. Pre-uploaded fixture references."},{"case":"net.bytes.head","rows":[{"param":{"count":100},"runners":{"go":{"case":"net.bytes.head","param":{"count":100},"iters_ms":[34.085,23.914,18.816,21.902,20.047],"median_ms":21.902,"min_ms":18.816,"max_ms":34.085,"mean_ms":23.753,"peak_rss_mb":243.5,"notes":"count=100"},"rs":{"case":"net.bytes.head","param":{"count":100},"iters_ms":[26.734,24.574,25.643,23.544,21.309],"median_ms":24.574,"min_ms":21.309,"max_ms":26.734,"mean_ms":24.361,"peak_rss_mb":127.9,"notes":"count=100"},"js":{"case":"net.bytes.head","param":{"count":100},"iters_ms":[103.265,98.685,97.949,95.089,92.461],"median_ms":97.949,"min_ms":92.461,"max_ms":103.265,"mean_ms":97.49,"peak_rss_mb":585,"notes":"count=100"}}}],"doc":"100 × HEAD /bytes/<ref> against the 1MB fixture reference. Metadata-only path — isolates HTTP-stack overhead from body transfer."},{"case":"net.bytes.download.range","rows":[{"param":{"ranges":50,"size_mb":1},"runners":{"go":{"case":"net.bytes.download.range","param":{"ranges":50,"size_mb":1},"iters_ms":[7.468,6.865,6.617,6.495,7.368],"median_ms":6.865,"min_ms":6.495,"max_ms":7.468,"mean_ms":6.963,"throughput_mbps":145.67,"peak_rss_mb":443.5,"notes":"slice_mb=1"},"rs":{"case":"net.bytes.download.range","param":{"ranges":50,"size_mb":1},"iters_ms":[11.316,9.257,8.427,8.388,8.259],"median_ms":8.427,"min_ms":8.259,"max_ms":11.316,"mean_ms":9.129,"throughput_mbps":118.67,"peak_rss_mb":227.9,"notes":"slice_mb=1"},"js":{"case":"net.bytes.download.range","param":{"size_mb":1,"ranges":50},"iters_ms":[10.781,13.561,10.078,9.809,12.189],"median_ms":10.781,"min_ms":9.809,"max_ms":13.561,"mean_ms":11.284,"peak_rss_mb":648.7,"notes":"slice_mb=1","throughput_mbps":92.76}}}],"doc":"50 × GET /bytes/<ref> with Range: bytes=0-65535 against the 1MB fixture. Tests partial-download path and HTTP Range handling."},{"case":"net.chunks.upload","rows":[{"param":{"count":50},"runners":{"go":{"case":"net.chunks.upload","param":{"count":50},"iters_ms":[271172.174,95375.887,213043.147,232442.707,235423.146],"median_ms":232442.707,"min_ms":95375.887,"max_ms":271172.174,"mean_ms":209491.412,"throughput_mbps":0,"peak_rss_mb":243.2,"notes":"count=50"},"rs":{"case":"net.chunks.upload","param":{"count":50},"iters_ms":[187452.898,148630.9,245033.882,173056.708,277896.467],"median_ms":187452.898,"min_ms":148630.9,"max_ms":277896.467,"mean_ms":206414.171,"throughput_mbps":0,"peak_rss_mb":128.9,"notes":"count=50"},"js":{"case":"net.chunks.upload","param":{"count":50},"iters_ms":[171892.053,267314.095,266976.569,228575.083,126685.336],"median_ms":228575.083,"min_ms":126685.336,"max_ms":267314.095,"mean_ms":212288.627,"peak_rss_mb":648.9,"notes":"count=50","throughput_mbps":0}}}],"doc":"50 × pre-built content-addressed chunks via /chunks. Per-call overhead. (Reduced from 1000 — Sepolia /chunks endpoint syncs ~600ms/chunk after a sync queue builds up from the bzz/bytes upload phase.)"},{"case":"net.stream-dir.upload","rows":[{"param":{"file_bytes":8192,"files":20},"runners":{"go":{"case":"net.stream-dir.upload","param":{"file_bytes":8192,"files":20},"iters_ms":[422389.598,252469.061,203745.266,199928.076,255175.99],"median_ms":252469.061,"min_ms":199928.076,"max_ms":422389.598,"mean_ms":266741.598,"throughput_mbps":0,"peak_rss_mb":151.6,"notes":"files=20 bytes_each=8192"},"rs":{"case":"net.stream-dir.upload","param":{"files":20,"file_bytes":8192},"iters_ms":[54121.951,86281.446,71846.174,89881.857,87018.282],"median_ms":86281.446,"min_ms":54121.951,"max_ms":89881.857,"mean_ms":77829.942,"throughput_mbps":0,"peak_rss_mb":129,"notes":"files=20 bytes_each=8192"},"js":{"case":"net.stream-dir.upload","param":{"files":20,"file_bytes":8192},"iters_ms":[97637.859,69124.551,100579.853,49652.105,182838.425],"median_ms":97637.859,"min_ms":49652.105,"max_ms":182838.425,"mean_ms":99966.559,"peak_rss_mb":250.3,"notes":"files=20 bytes_each=8192","throughput_mbps":0}}}],"doc":"Streaming directory upload for 20 files. (Reduced from 50 — back-pressured /chunks pipeline on Sepolia made larger sets dominate wall clock.)"},{"case":"net.soc.upload","rows":[{"param":{"count":25},"runners":{"go":{"case":"net.soc.upload","param":{"count":25},"iters_ms":[78126.72,112530.726,46242.208,40595.117,68630.645],"median_ms":68630.645,"min_ms":40595.117,"max_ms":112530.726,"mean_ms":69225.083,"throughput_mbps":0,"peak_rss_mb":151.7,"notes":"count=25"},"rs":{"case":"net.soc.upload","param":{"count":25},"iters_ms":[68441.005,40601.197,65370.677,38089.829,36339.527],"median_ms":40601.197,"min_ms":36339.527,"max_ms":68441.005,"mean_ms":49768.447,"throughput_mbps":0,"peak_rss_mb":129,"notes":"count=25"},"js":{"case":"net.soc.upload","param":{"count":25},"iters_ms":[84731.895,174793.522,150072.605,60028.781,45319.239],"median_ms":84731.895,"min_ms":45319.239,"max_ms":174793.522,"mean_ms":102989.208,"peak_rss_mb":250.3,"notes":"count=25","throughput_mbps":0}}}],"doc":"Single-owner-chunk write × 25. Hot path under feeds. (Was 100 — reduced to keep wall clock reasonable on Sepolia.)"},{"case":"net.pin.add-list","rows":[{"param":{"count":25},"runners":{"go":{"case":"net.pin.add-list","param":{"count":25},"iters_ms":[26393.235,104.543,70.123,49.317,47.969],"median_ms":70.123,"min_ms":47.969,"max_ms":26393.235,"mean_ms":5333.037,"peak_rss_mb":151.7,"notes":"count=25"},"rs":{"case":"net.pin.add-list","param":{"count":25},"iters_ms":[55461.89,29.842,29.806,25.857,23.376],"median_ms":29.806,"min_ms":23.376,"max_ms":55461.89,"mean_ms":11114.154,"peak_rss_mb":129,"notes":"count=25"},"js":{"case":"net.pin.add-list","param":{"count":25},"iters_ms":[82.832,76.997,73.777,76.461,77.561],"median_ms":76.997,"min_ms":73.777,"max_ms":82.832,"mean_ms":77.526,"peak_rss_mb":251.4,"notes":"count=25"}}}],"doc":"Pin 25 pre-uploaded refs (POST /pins/<ref>) → GET /pins → unpin all 25 (DELETE /pins/<ref>). Per-call HTTP overhead on a different endpoint than /stamps."},{"case":"net.tags.upload-with-tag","rows":[{"param":{"size_mb":1},"runners":{"go":{"case":"net.tags.upload-with-tag","param":{"size_mb":1},"iters_ms":[124.744,125.481,119.248,135.075,141.993],"median_ms":125.481,"min_ms":119.248,"max_ms":141.993,"mean_ms":129.308,"throughput_mbps":7.97,"peak_rss_mb":153.7,"notes":"size_mb=1"},"rs":{"case":"net.tags.upload-with-tag","param":{"size_mb":1},"iters_ms":[101.937,89.893,91.639,99.163,92.694],"median_ms":92.694,"min_ms":89.893,"max_ms":101.937,"mean_ms":95.065,"throughput_mbps":10.79,"peak_rss_mb":129.8,"notes":"size_mb=1"},"js":{"case":"net.tags.upload-with-tag","param":{"size_mb":1},"iters_ms":[97.962,91.326,101.816,100.621,98.606],"median_ms":98.606,"min_ms":91.326,"max_ms":101.816,"mean_ms":98.066,"peak_rss_mb":261.3,"notes":"size_mb=1","throughput_mbps":10.14}}}],"doc":"POST /tags → upload 1MB via /bytes with Swarm-Tag header → GET /tags/<id>. Tests tag observability bookkeeping cost vs raw /bytes upload."}],"scoreboard":{"go":{"wins":10,"geomean_overall":1.3157952582894934,"geomean_by_group":{"CPU (no network)":1.1494639713599384,"Calibration":6.037605345211244,"Feeds":1.0001031904958617,"Network upload":1.1599586900641061,"Network download":1.0099311951145062,"Bee chunk-pipeline (Sepolia-bottlenecked)":1.8304783057436453,"Pin / observability":2.352647118029927},"sample_count":34},"rs":{"wins":24,"geomean_overall":1.1138359576350079,"geomean_by_group":{"CPU (no network)":1.2599128564957525,"Calibration":1,"Feeds":1.1133515943800796,"Network upload":1.0013825129045963,"Network download":1.1961408818873809,"Bee chunk-pipeline (Sepolia-bottlenecked)":1,"Pin / observability":1},"sample_count":34},"js":{"wins":0,"geomean_overall":4.484461750720582,"geomean_by_group":{"CPU (no network)":30.851579845859465,"Calibration":14.457571256937545,"Feeds":1.2317536409088796,"Network upload":1.1260659503848034,"Network download":2.3852913019729356,"Bee chunk-pipeline (Sepolia-bottlenecked)":1.4227061665525005,"Pin / observability":2.5832718244648727},"sample_count":34}}};
+const RUNNERS = ["go","rs","js"];
+const LABELS = {"go":"bee-go","rs":"bee-rs","js":"bee-js"};
+const COLORS = {"go":"#00ADD8","rs":"#DEA584","js":"#F7DF1E"};
+const GROUPS = [{"name":"CPU (no network)","note":"Pure client work — no Bee involvement.","pattern":"^cpu\\."},{"name":"Calibration","note":"Control + concurrent overhead. /stamps.list = sequential calibration. /stamps.concurrent = N parallel calls, exposes HTTP-stack differences (connection pool, keepalive default).","pattern":"^net\\.stamps\\."},{"name":"Feeds","note":"`fresh` measures Bee /feeds exponential search (Sepolia-bound). `warm` is the cached-lookup cost.","pattern":"^net\\.feed\\."},{"name":"Network upload","note":"POST /bzz, /bytes, /bzz with encrypt=true, /bytes-with-tag. Bee chunking + stamping is the bottleneck (~10 MB/s).","pattern":"^net\\.(bzz|bytes|tags)\\.(upload|upload-with-tag)(?!.*from-disk)"},{"name":"Network upload (streaming from disk)","note":"Stream from disk via fs.createReadStream / os.Open. bee-rs N/A — buffers fully.","pattern":"^net\\.bzz\\.upload-from-disk"},{"name":"Network download","note":"⚠ Local-cache hit — chunks were just uploaded so Bee returns them from local store. Measures client-side download path overhead, NOT real network fetch.","pattern":"^net\\.(bzz|bytes)\\.(download|head)"},{"name":"Pin / observability","note":"POST/DELETE /pins/<ref> + GET /pins. Per-call HTTP overhead on a pinning-endpoint shape.","pattern":"^net\\.pin\\."},{"name":"Bee chunk-pipeline (Sepolia-bottlenecked)","note":"⚠ These cases are dominated by Bee's sync queue on Sepolia (~600ms/chunk push ack). Per-unit times are NOT a client-speed comparison.","pattern":"^net\\.(chunks|stream-dir|soc)\\."}];
+const PER_UNIT = {"cpu.keccak.chunk-hash":{"key":"count","label":"call"},"cpu.keccak.parallel":{"key":"count","label":"call"},"cpu.ecdsa.sign-1000":{"key":"count","label":"sign"},"cpu.ecdsa.verify-1000":{"key":"count","label":"verify"},"cpu.identity.create":{"key":"count","label":"identity"},"cpu.manifest.lookup-large":{"key":"lookups","label":"lookup"},"net.stamps.concurrent":{"key":"count","label":"call"},"net.bytes.head":{"key":"count","label":"HEAD"},"cpu.manifest.hash-50files":{"key":"files","label":"file"},"net.chunks.upload":{"key":"count","label":"chunk"},"net.soc.upload":{"key":"count","label":"SOC"},"net.pin.add-list":{"key":"count","label":"pin"},"net.stream-dir.upload":{"key":"files","label":"file"},"net.feed.write-read.warm":{"key":"reads","label":"read"}};
+
+function paramLabel(p) {
+  if (!p || typeof p !== 'object') return '—';
+  const keys = Object.keys(p).filter(k => k !== 'large');
+  if (keys.length === 0) return '—';
+  return keys.map(k => k + '=' + p[k]).join(', ');
+}
+function fmtMs(ms) {
+  if (ms == null || isNaN(ms)) return '—';
+  if (ms < 1) return (ms*1000).toFixed(0) + 'µs';
+  if (ms < 1000) return ms.toFixed(1) + 'ms';
+  if (ms < 60000) return (ms/1000).toFixed(2) + 's';
+  return (ms/60000).toFixed(1) + 'min';
+}
+function fmtRatio(r) {
+  if (r == null || !isFinite(r)) return '—';
+  if (r === 1) return '1.00x';
+  if (r < 10) return r.toFixed(2) + 'x';
+  if (r < 100) return r.toFixed(1) + 'x';
+  return Math.round(r) + 'x';
+}
+function rangePct(iters) {
+  if (!iters || iters.length < 2) return null;
+  const s = [...iters].sort((a,b)=>a-b);
+  const med = s.length%2 ? s[(s.length-1)/2] : (s[s.length/2-1]+s[s.length/2])/2;
+  if (med === 0) return null;
+  const half = Math.max(med - s[0], s[s.length-1] - med);
+  return (half/med)*100;
+}
+function bestMs(row) {
+  let b = Infinity;
+  for (const r of RUNNERS) {
+    const x = row.runners[r];
+    if (x && !x.skipped && x.median_ms != null && x.median_ms < b) b = x.median_ms;
+  }
+  return b === Infinity ? null : b;
+}
+function perUnit(caseId, param, med) {
+  const cfg = PER_UNIT[caseId];
+  if (!cfg || !param || med == null) return null;
+  const n = param[cfg.key];
+  if (typeof n !== 'number' || n <= 0) return null;
+  return fmtMs(med/n) + '/' + cfg.label;
+}
+function fitLatencyVsSize(pts) {
+  const filtered = pts.filter(p => typeof p.size_mb === 'number' && p.size_mb > 0 && p.ms > 0);
+  if (filtered.length < 2) return null;
+  const xs = filtered.map(p => p.size_mb * 1024 * 1024);
+  const ys = filtered.map(p => p.ms);
+  const n = xs.length;
+  const sumX = xs.reduce((a,b)=>a+b,0);
+  const sumY = ys.reduce((a,b)=>a+b,0);
+  const sumXY = xs.reduce((s,x,i)=>s+x*ys[i],0);
+  const sumX2 = xs.reduce((s,x)=>s+x*x,0);
+  const denom = n*sumX2 - sumX*sumX;
+  if (denom === 0) return null;
+  const slope = (n*sumXY - sumX*sumY) / denom;
+  const intercept = (sumY - slope*sumX) / n;
+  if (!(slope > 0)) return { fixed_overhead_ms: intercept, throughput_mbps: null, points: n };
+  const bytesPerMs = 1/slope;
+  const mbps = bytesPerMs * 1000 / (1024 * 1024);
+  return { fixed_overhead_ms: intercept, throughput_mbps: mbps, points: n };
+}
+function renderLatencyFitHtml(c) {
+  const sizeRows = c.rows.filter(r => typeof r.param?.size_mb === 'number');
+  if (sizeRows.length < 2) return '';
+  const fits = {};
+  let any = false;
+  for (const runner of RUNNERS) {
+    const pts = sizeRows.map(row => {
+      const x = row.runners[runner];
+      const ok = x && !x.skipped && x.iters_ms && x.iters_ms.length > 0 && x.median_ms > 0;
+      return { size_mb: row.param.size_mb, ms: ok ? x.median_ms : null };
+    });
+    const f = fitLatencyVsSize(pts);
+    fits[runner] = f;
+    if (f) any = true;
+  }
+  if (!any) return '';
+  let html = '<div class="fit"><div class="fit-title"><strong>Latency-vs-size linear fit</strong> <span class="sub">(time_ms ≈ fixed_overhead + bytes / throughput)</span></div>';
+  html += '<table><thead><tr><th>Runner</th><th>fixed overhead</th><th>peak throughput</th><th>points</th></tr></thead><tbody>';
+  for (const r of RUNNERS) {
+    const f = fits[r];
+    if (!f) { html += '<tr><td>' + LABELS[r] + '</td><td>—</td><td>—</td><td>—</td></tr>'; continue; }
+    const ovh = f.fixed_overhead_ms != null ? fmtMs(Math.max(0, f.fixed_overhead_ms)) : '—';
+    const tp = f.throughput_mbps != null ? f.throughput_mbps.toFixed(1) + ' MB/s' : '—';
+    html += '<tr><td>' + LABELS[r] + '</td><td>' + ovh + '</td><td>' + tp + '</td><td>' + f.points + '</td></tr>';
+  }
+  html += '</tbody></table></div>';
+  return html;
+}
+
+// Scoreboard
+(function () {
+  const t = document.getElementById('scoreboardTable');
+  const groupNames = GROUPS.map(g => g.name);
+  let html = '<thead><tr><th>Runner</th><th>Wins</th><th>Rows</th><th>Overall</th>';
+  for (const gn of groupNames) html += '<th>' + gn + '</th>';
+  html += '</tr></thead><tbody>';
+  for (const r of RUNNERS) {
+    const s = data.scoreboard?.[r] || {};
+    html += '<tr><td>' + LABELS[r] + '</td><td>' + (s.wins ?? 0) + '</td><td>' + (s.sample_count ?? 0) + '</td><td>' + fmtRatio(s.geomean_overall) + '</td>';
+    for (const gn of groupNames) html += '<td>' + fmtRatio(s.geomean_by_group?.[gn]) + '</td>';
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  t.innerHTML = html;
+})();
+
+const root = document.getElementById('root');
+for (const g of GROUPS) {
+  const re = new RegExp(g.pattern);
+  const groupCases = data.cases.filter(c => re.test(c.case));
+  if (groupCases.length === 0) continue;
+  const h2 = document.createElement('h2');
+  h2.textContent = g.name;
+  root.appendChild(h2);
+  if (g.note) {
+    const n = document.createElement('div');
+    n.className = 'group-note';
+    n.textContent = g.note;
+    root.appendChild(n);
+  }
+  for (const c of groupCases) {
+    const div = document.createElement('div');
+    div.className = 'case';
+    const docHtml = c.doc ? '<div class="doc">' + escapeHtml(c.doc) + '</div>' : '';
+    div.innerHTML = '<h3>' + c.case + '</h3>' + docHtml + '<div class="chart-wrap"><canvas></canvas></div>';
+    root.appendChild(div);
+    const canvas = div.querySelector('canvas');
+
+    const labels = c.rows.map(r => paramLabel(r.param));
+    const datasets = RUNNERS.map(runner => ({
+      label: LABELS[runner],
+      backgroundColor: COLORS[runner],
+      data: c.rows.map(r => r.runners[runner]?.median_ms ?? null),
+    }));
+
+    new Chart(canvas, {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        maintainAspectRatio: false, responsive: true,
+        scales: { y: { title: { display: true, text: 'median ms (lower is better, log)' }, type: 'logarithmic' } },
+        plugins: { tooltip: {
+          callbacks: {
+            label: (ctx) => {
+              const row = c.rows[ctx.dataIndex];
+              const result = row.runners[RUNNERS[ctx.datasetIndex]];
+              if (!result) return ctx.dataset.label + ': —';
+              if (result.skipped) return ctx.dataset.label + ': skip — ' + (result.skip_reason || '');
+              const b = bestMs(row);
+              const ratio = b ? result.median_ms / b : null;
+              const tp = result.throughput_mbps != null ? ' (' + result.throughput_mbps.toFixed(1) + ' MB/s)' : '';
+              const pu = perUnit(c.case, row.param, result.median_ms);
+              const rss = result.peak_rss_mb ? ' rss ' + result.peak_rss_mb.toFixed(0) + 'MB' : '';
+              const r = ratio != null ? ' [' + fmtRatio(ratio) + ']' : '';
+              return ctx.dataset.label + ': ' + fmtMs(result.median_ms) + r + tp + (pu ? ' — ' + pu : '') + rss;
+            }
+          }
+        } }
+      }
+    });
+
+    // Companion table
+    const table = document.createElement('table');
+    let header = '<thead><tr><th>param</th>' + RUNNERS.map(r => '<th>' + LABELS[r] + '</th>').join('') + '</tr></thead>';
+    let body = '<tbody>' + c.rows.map(row => {
+      const b = bestMs(row);
+      return '<tr><td>' + paramLabel(row.param) + '</td>' + RUNNERS.map(r => {
+        const x = row.runners[r];
+        if (!x) return '<td>—</td>';
+        if (x.skipped) return '<td class="skip">skip</td>';
+        const ratio = b && x.median_ms ? x.median_ms / b : null;
+        const isBest = ratio === 1;
+        const pu = perUnit(c.case, row.param, x.median_ms);
+        const rng = rangePct(x.iters_ms);
+        const tp = x.throughput_mbps != null ? ' (' + x.throughput_mbps.toFixed(1) + ' MB/s)' : '';
+        const rss = x.peak_rss_mb ? '<div class="sub">rss ' + x.peak_rss_mb.toFixed(0) + 'MB' + (rng!=null?' · ±'+rng.toFixed(0)+'%':'') + '</div>' : (rng!=null?'<div class="sub">±'+rng.toFixed(0)+'%</div>':'');
+        const main = '<div class="' + (isBest?'winner':'') + '">' + fmtMs(x.median_ms) + ' ' + (isBest?'(best)':'('+fmtRatio(ratio)+')') + tp + '</div>';
+        const sub = pu ? '<div class="sub">' + pu + '</div>' : '';
+        return '<td>' + main + sub + rss + '</td>';
+      }).join('') + '</tr>';
+    }).join('') + '</tbody>';
+    table.innerHTML = header + body;
+    div.appendChild(table);
+
+    const fitHtml = renderLatencyFitHtml(c);
+    if (fitHtml) {
+      const fitDiv = document.createElement('div');
+      fitDiv.innerHTML = fitHtml;
+      div.appendChild(fitDiv.firstChild);
+    }
+  }
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+</script>
+</body>
+</html>
