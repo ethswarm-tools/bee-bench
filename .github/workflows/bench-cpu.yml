@@ -58,6 +58,9 @@ jobs:
           repository: ethswarm-tools/bee-go
           ref: ${{ env.BEE_GO_REF }}
           path: bee-go
+          # runner-go runs `git describe --tags` against this checkout to
+          # capture the actual client version into the result JSON.
+          fetch-tags: true
 
       - name: Checkout bee-rs
         uses: actions/checkout@v4

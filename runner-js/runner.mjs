@@ -103,7 +103,7 @@ async function main() {
 
   const out = {
     runner: RUNNER_NAME,
-    client_version: 'bee-js (file:../../bee-js)',
+    client_version: `bee-js ${readBeeJsVersion(REPO_ROOT)} (file:../../bee-js)`,
     bee_version: beeVersion,
     bench_spec_hash: specHash,
     started_at: startedAt,
@@ -1064,4 +1064,16 @@ function findRepoRoot() {
     dir = parent;
   }
   throw new Error('bench-spec.json not found at or above ' + __dirname);
+}
+
+// Read the version field from the sibling bee-js package.json so the
+// result JSON records which client version produced the run.
+function readBeeJsVersion(repoRoot) {
+  try {
+    const pkgPath = join(dirname(repoRoot), 'bee-js', 'package.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    return pkg.version || 'unknown';
+  } catch {
+    return 'unknown';
+  }
 }

@@ -1,0 +1,67 @@
+name: docker
+
+# Builds the Dockerfile end-to-end so we know the image still works.
+# Hadolint (in validate.yml) only catches static issues — this catches
+# everything else: upstream client refs that no longer exist, build-step
+# regressions, toolchain version drift, etc.
+#
+# Triggers:
+#   - manual (workflow_dispatch) for ad-hoc verification
+#   - push to main only when Dockerfile / .dockerignore changes (skip
+#     on routine commits to keep CI minutes reasonable)
+#
+# Caches via GitHub Actions cache (cache-from/-to type=gha) so warm
+# rebuilds skip the costly cargo + go-mod + npm install layers.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/docker.yml'
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: bee-bench:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke-test entrypoint (CPU subset, 2 iters)
+        run: |
+          mkdir -p out
+          docker run --rm \
+            -e BEE_URL=http://127.0.0.1:1 \
+            -e BENCH_ITERS=2 \
+            -v "$PWD/out:/workspace/bee-bench/results" \
+            bee-bench:ci
+          test -s out/report.md
+          test -s out/report.html
+          test -s out/report.csv
+          head -1 out/report.csv
+
+      - name: Upload smoke-test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-smoke-${{ github.run_id }}
+          path: out/
+          retention-days: 14

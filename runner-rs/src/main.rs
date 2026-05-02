@@ -110,9 +110,10 @@ async fn main() {
         }
     }
 
+    let bee_rs_version = read_bee_rs_version(&repo_root).unwrap_or_else(|| "unknown".into());
     let res = RunResult {
         runner: RUNNER_NAME.into(),
-        client_version: format!("bee-rs {} (path)", env!("CARGO_PKG_VERSION")),
+        client_version: format!("bee-rs {} (path:../../bee-rs)", bee_rs_version),
         bee_version,
         bench_spec_hash: hash,
         started_at,
@@ -238,6 +239,29 @@ fn find_repo_root() -> Option<PathBuf> {
         let parent = dir.parent()?.to_path_buf();
         if parent == dir { break; }
         dir = parent;
+    }
+    None
+}
+
+/// Read `version = "..."` from the [package] section of the sibling
+/// bee-rs Cargo.toml so the result JSON records which client version
+/// the runner actually built against. None on any failure — caller
+/// substitutes "unknown".
+fn read_bee_rs_version(repo_root: &Path) -> Option<String> {
+    let path = repo_root.parent()?.join("bee-rs").join("Cargo.toml");
+    let raw = std::fs::read_to_string(&path).ok()?;
+    let mut in_package = false;
+    for line in raw.lines() {
+        let t = line.trim();
+        if t == "[package]" { in_package = true; continue; }
+        if t.starts_with('[') && t != "[package]" { in_package = false; continue; }
+        if in_package {
+            if let Some(rest) = t.strip_prefix("version") {
+                let v = rest.trim_start_matches([' ', '=']).trim();
+                let v = v.trim_matches('"').to_string();
+                if !v.is_empty() { return Some(v); }
+            }
+        }
     }
     None
 }

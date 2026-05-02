@@ -54,7 +54,8 @@ ENV GOPATH=/go GOCACHE=/root/.cache/go-build PATH=$PATH:/usr/local/go/bin:/go/bi
 WORKDIR /workspace
 RUN git clone --depth 1 --branch ${BEE_GO_REF} https://github.com/ethswarm-tools/bee-go.git \
  && git clone --depth 1 --branch ${BEE_RS_REF} https://github.com/ethswarm-tools/bee-rs.git \
- && git clone --depth 1 --branch ${BEE_JS_REF} https://github.com/ethersphere/bee-js.git
+ && git clone --depth 1 --branch ${BEE_JS_REF} https://github.com/ethersphere/bee-js.git \
+ && (cd bee-go && git fetch --depth=1 --tags origin 2>/dev/null || true)
 
 # bee-js needs to be built before runner-js can import it
 WORKDIR /workspace/bee-js

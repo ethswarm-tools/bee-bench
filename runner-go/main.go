@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	bee "github.com/ethswarm-tools/bee-go"
@@ -108,7 +110,7 @@ func main() {
 		fmt.Sprintf("%s-%s.json", runnerName, time.Now().UTC().Format("20060102T150405Z")))
 	res := &RunResult{
 		Runner:        runnerName,
-		ClientVersion: "bee-go (replace ../../bee-go)",
+		ClientVersion: fmt.Sprintf("bee-go %s (replace ../../bee-go)", readBeeGoVersion(repoRoot)),
 		BeeVersion:    beeVer,
 		BenchSpecHash: hash,
 		StartedAt:     ts,
@@ -231,6 +233,22 @@ func envInt(k string, dflt int) int {
 func fail(f string, args ...any) {
 	fmt.Fprintf(os.Stderr, "runner-go: "+f+"\n", args...)
 	os.Exit(1)
+}
+
+// readBeeGoVersion shells out to `git -C ../bee-go describe --tags --always`
+// so the result JSON records which client version produced the run.
+// Returns "unknown" on any failure (no git, no .git, no commits).
+func readBeeGoVersion(repoRoot string) string {
+	siblingDir := filepath.Join(filepath.Dir(repoRoot), "bee-go")
+	cmd := exec.Command("git", "-C", siblingDir, "describe", "--tags", "--always", "--abbrev=7")
+	out, err := cmd.Output()
+	if err == nil {
+		v := strings.TrimSpace(string(out))
+		if v != "" {
+			return v
+		}
+	}
+	return "unknown"
 }
 
 // findRepoRoot walks up from CWD looking for bench-spec.json. The runner
