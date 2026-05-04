@@ -44,9 +44,10 @@ The colleague's "ECDSA in JS is notoriously slow" framing is half right but misl
 |---|---|---|
 | bee-js | `cafe-utility` `Elliptic` | pure-JS bigint secp256k1 + js-sha3 keccak |
 | bee-go | `github.com/ethereum/go-ethereum/crypto` → `decred/dcrd/dcrec/secp256k1/v4` | pure-Go but with optimized amd64 assembly |
-| bee-rs | `k256` 0.13 + `sha3` 0.10 | pure-Rust, no assembly. ~2-3x slower than libsecp256k1 |
+| bee-rs ≤1.1.0 | `k256` 0.13 + `sha3` 0.10 | pure-Rust, no assembly. ~3-4× slower than libsecp256k1 |
+| bee-rs ≥1.2.0 | `secp256k1` 0.30 (libsecp256k1 C bindings) + `sha3` 0.10 | C-asm secp256k1, on par with bee-go's decred backend |
 
-Expect `Go fastest > Rust > JS slowest` rather than "JS slow / Rust fast". A future bee-rs win would be opting into the libsecp256k1 backend via the `secp256k1` crate.
+Original baseline ranking was `Go fastest > Rust > JS slowest`. As of bee-rs 1.2.0 (2026-05-04, swap k256 → secp256k1) the ranking flips to `Rust ≈ Go > JS`: see F5/F15/F17 for before/after numbers. The `sha3` keccak crate was *not* swapped — F6 ties tiny-keccak and is not a bottleneck.
 
 ### F3. All three implement the same eth-envelope ECDSA scheme
 
@@ -77,12 +78,13 @@ Means the `cpu.*` cases compare native client behavior, not synthetic adapters.
 | Runner | median | per-sign |
 |---|---|---|
 | bee-go (decred secp256k1, asm) | 72.9ms | 73µs |
-| bee-rs (k256, pure-Rust) | 117.7ms | 118µs |
+| bee-rs ≤1.1.0 (k256, pure-Rust) | 117.7ms | 118µs |
+| **bee-rs ≥1.2.0 (libsecp256k1 C)** | **33.05ms** | **33µs** |
 | bee-js (cafe-utility Elliptic, pure-JS bigint) | 16,138ms | 16.1ms |
 
-The colleague's "ECDSA signing in Bee-JS is notoriously slow" framing is confirmed. Each sign in bee-js is ~16ms — that's ~73µs per sign in bee-go, vs **221x more** in bee-js, and 137x slower than bee-rs. WASM-compiling the secp256k1 path or wiring `noble-secp256k1` would close most of this gap.
+The colleague's "ECDSA signing in Bee-JS is notoriously slow" framing is confirmed. Each sign in bee-js is ~16ms — that's ~73µs per sign in bee-go, vs **221x more** in bee-js, and 137x slower than the old bee-rs k256. WASM-compiling the secp256k1 path or wiring `noble-secp256k1` would close most of this gap.
 
-bee-rs at 118ms is 1.6x slower than bee-go because k256 ships no assembly. Opting into the `secp256k1` crate (libsecp256k1 C bindings) would get bee-rs to ~30-40ms.
+bee-rs 1.2.0 swapped k256 → `secp256k1` 0.30 (libsecp256k1 C bindings). Sign drops from 118µs to 33µs — **3.57×**, predicted ~3.6× by the criterion microbench in `bee-rs/benches/hashing.rs`. This puts bee-rs **2.2× faster than bee-go** on signing despite both backends being asm-tier secp256k1 — likely an FFI-vs-pure-Go scheduling difference, plus tighter loop overhead in the Rust harness.
 
 ### F6. JS keccak/BMT chunker is ~10-12x slower
 
@@ -116,9 +118,13 @@ Peak RSS for `cpu.bmt.file-root` at 100MB:
 
 bee-js peaks at ~14x its input size during a single 100MB chunker run — likely a combination of MerkleTree internal accumulation and V8 heap behavior. Worth flagging that 1GB chunking in bee-js will OOM on most laptops without `--max-old-space-size` tuning.
 
-### F8. bee-rs is consistently fastest on CPU work except ECDSA
+### F8. bee-rs is consistently fastest on CPU work (ECDSA flipped in v1.2.0)
 
-bee-rs wins on every CPU benchmark except `cpu.ecdsa.sign-1000`. The pattern: where the work is keccak/BMT-bound, bee-rs's `sha3` crate edges bee-go's `golang.org/x/crypto/sha3`. Where the work is secp256k1-bound, bee-go's optimized backend pulls ahead.
+Original baseline: bee-rs won every CPU benchmark **except** the three secp256k1-bound ones (`cpu.ecdsa.sign-1000`, `cpu.ecdsa.verify-1000`, `cpu.identity.create`), where bee-go's asm-optimized decred backend pulled ahead.
+
+As of bee-rs 1.2.0, the secp256k1 swap reverses that: bee-rs is now fastest on **all** CPU benchmarks. The keccak/BMT cases remain bee-rs wins via the `sha3` crate (vs `golang.org/x/crypto/sha3` and `js-sha3`); the ECDSA/identity cases now win via libsecp256k1 (see F5/F15/F17).
+
+Re-running bee-go and bee-js against the current spec is required for the auto-aggregated scoreboard to reflect this — the canonical numbers above are the trustworthy view until the next full sweep.
 
 ### F9. Encryption-aware offline chunking is missing in all three clients
 
@@ -167,10 +173,16 @@ Re-run of `net.soc.upload count=25` on the 2026-05-02 unified sweep:
 | Runner | median | per-SOC |
 |---|---|---|
 | bee-go | 1.14min | 2.75s/SOC |
-| bee-rs | **40.6s** | 1.62s/SOC |
+| bee-rs ≤1.1.0 | **40.6s** | 1.62s/SOC |
 | bee-js | 1.41min | 3.39s/SOC |
 
 Same ranking as F13 (rs < go < js in the original baseline; here rs < go ≈ js). bee-go SOC writes are still ~70% slower than bee-rs. The hypothesis from F13 (avoidable allocation or address-recompute in `client.File.MakeSOCWriter`) still stands.
+
+### F13c. SOC writes are *not* a useful gauge of the bee-rs 1.2.0 ECDSA swap
+
+Re-run of `net.soc.upload count=25` against bee-rs 1.2.0 produced median 3.55s — apparent ~11× speedup vs F13b's 40.6s. **This number does not isolate the ECDSA change.** Math: sign dropped ~85µs/sig × 25 chunks = ~2ms saved per iter. The 37-second gap is Sepolia network/sync variance, not crypto. The 2026-05-02 baseline mean was 49.8s vs median 40.6s, signaling a slow-tail Sepolia run; the 2026-05-04 run got luckier with the network. `net.feed.write-read.warm` ran 5.014s vs 5.018s pre/post — the byte-for-byte unchanged comparison confirms signing is not on the wall-clock critical path for net.* cases on Sepolia.
+
+**Implication:** ECDSA-bound microbenches (F5, F15, F17) are the trustworthy view of the v1.2.0 swap. The net.* signing cases on Sepolia are dominated by Bee node ingest + push-sync ack and cannot resolve a ~85µs/sig improvement.
 
 ### F14. Feed read fails with 404 in same iter as the write
 
@@ -183,7 +195,8 @@ Verify (recover-public-key under eth-envelope) is *slower* than sign on both pur
 | Runner | sign 1000 | verify 1000 | sign µs | verify µs | verify/sign ratio |
 |---|---|---|---|---|---|
 | bee-go | 72.8ms | 50.7ms | 73 | 51 | **0.70** (verify faster) |
-| bee-rs | 117.1ms | 225.5ms | 117 | 225 | 1.92 (verify ~2x slower) |
+| bee-rs ≤1.1.0 | 117.1ms | 225.5ms | 117 | 225 | 1.92 (verify ~2x slower) |
+| **bee-rs ≥1.2.0** | **33.05ms** | **50.01ms** | **33** | **50** | **1.51** (verify ~1.5x slower) |
 | bee-js | 15.94s | 47.99s | 15,940 | 47,988 | 3.01 (verify ~3x slower) |
 
 Verify ratios to bee-go:
@@ -191,12 +204,15 @@ Verify ratios to bee-go:
 | Runner | sign-vs-go | verify-vs-go |
 |---|---|---|
 | bee-go | 1.0x | 1.0x |
-| bee-rs | 1.61x | 4.45x |
+| bee-rs ≤1.1.0 | 1.61x | 4.45x |
+| **bee-rs ≥1.2.0** | **0.45x (faster)** | **0.99x (~tied)** |
 | bee-js | 219x | **947x** |
 
-bee-go's secp256k1 backend (decred dcrd, asm-optimized) implements verify via direct point operations — strictly cheaper than sign's modular inverse. bee-rs's k256 has no asm path, so verify is dominated by the recovery search. bee-js's pure-bigint Elliptic library pays the recovery cost twice over: recovery requires multiple field exponentiations and JS bigint has no SIMD/asm shortcut.
+The 1.1.0 → 1.2.0 swap improves bee-rs verify by 4.50× (225ms → 50ms), slightly more than sign's 3.57× — the recovery search benefits doubly from the C-asm field arithmetic. Post-swap bee-rs verify is essentially tied with bee-go (50ms vs 51ms), and sign is **2.2× faster than bee-go**.
 
-**Implication for feed reads:** bee-js spending 48ms per recover means a single `bee.makeFeedReader().download()` has a ~48ms client-side floor before the HTTP call. Stack ten reads, that's nearly half a second of pure-JS bigint work. The slow JS feed flow people complain about isn't all Bee's `/feeds` exponential search — a meaningful chunk is recover-side.
+bee-js's pure-bigint Elliptic library pays the recovery cost twice over: recovery requires multiple field exponentiations and JS bigint has no SIMD/asm shortcut.
+
+**Implication for feed reads:** bee-js spending 48ms per recover means a single `bee.makeFeedReader().download()` has a ~48ms client-side floor before the HTTP call. Stack ten reads, that's nearly half a second of pure-JS bigint work. The slow JS feed flow people complain about isn't all Bee's `/feeds` exponential search — a meaningful chunk is recover-side. Same analysis applies to bee-rs ≤1.1.0 (225ms/recover = ~22ms ten-read floor); bee-rs ≥1.2.0 reduces this to ~5ms.
 
 ### F16. Mantaray lookup is essentially tied between bee-go and bee-rs
 
@@ -219,10 +235,11 @@ The Go and Rust trie traversals are within 2% of each other — both ~0.4µs per
 | Runner | total | per-identity | vs bee-go |
 |---|---|---|---|
 | bee-go | 44.8ms | 45µs | 1.0x |
-| bee-rs | 65.7ms | 66µs | 1.47x |
+| bee-rs ≤1.1.0 | 65.7ms | 66µs | 1.47x |
+| **bee-rs ≥1.2.0** | **24.69ms** | **25µs** | **0.55x (faster)** |
 | bee-js | 15.91s | 15.9ms | **355x** |
 
-Same backend story as `cpu.ecdsa.sign-1000`. The dominant cost is the public-key derivation (point multiplication on the curve), which is faster on go's asm path than rs's k256 (no asm) and astronomically faster than bee-js's bigint Elliptic. For any flow that derives many fresh identities (signer rotation, ephemeral SOC owners, test-fixture generation), bee-js will spend ~16 seconds where bee-go spends 45ms.
+Same backend story as `cpu.ecdsa.sign-1000`. The dominant cost is the public-key derivation (point multiplication on the curve), which is faster on go's asm path than rs's old k256 (no asm) and astronomically faster than bee-js's bigint Elliptic. The bee-rs 1.2.0 swap to libsecp256k1 puts rs at **1.81× faster than bee-go** — a 2.68× improvement over rs ≤1.1.0. For any flow that derives many fresh identities (signer rotation, ephemeral SOC owners, test-fixture generation), bee-js will spend ~16 seconds where bee-rs 1.2.0 spends 25ms.
 
 ### F18. Pin endpoint round-trips are 2.4x faster on bee-rs
 
@@ -262,10 +279,12 @@ Tag bookkeeping (POST /tags + the Swarm-Tag-Uid round-trip + GET /tags/<id>) cos
 
 ### F21. Updated scoreboard: bee-rs wins decisively overall
 
+> ℹ Snapshot below is from the 2026-05-02 unified sweep against **bee-rs 1.1.0**. The 2026-05-04 bee-rs 1.2.0 secp256k1 swap (F5/F15/F17) tightens the CPU column meaningfully — rs is now expected to lead CPU as well, not just tie elsewhere. Re-run all three runners against the current spec for an updated scoreboard.
+
 | Runner | Wins | Overall | CPU | Calibration | Feeds | Net upload | Net download | Pin/observability | Bee chunk-pipeline |
 |---|---|---|---|---|---|---|---|---|---|
 | bee-go | 10 | 1.32x | **1.15x** | 6.04x | 1.00x | 1.16x | 1.01x | 2.35x | 1.83x |
 | bee-rs | **24** | **1.11x** | 1.26x | **1.00x** | **1.11x** | **1.00x** | 1.20x | **1.00x** | **1.00x** |
 | bee-js | 0 | 4.48x | 30.9x | 14.5x | 1.23x | 1.13x | 2.39x | 2.58x | 1.42x |
 
-bee-rs leads or ties on **every group except CPU**. The recurring driver is the HTTP stack: reqwest+tokio pools and reuses connections more aggressively than Go's `http.DefaultClient` and far more aggressively than bee-js's axios (which defaults `keepAlive: false`). bee-go remains marginally fastest on pure CPU (1.15x vs rs's 1.26x) thanks to optimized secp256k1 asm, but loses meaningfully whenever there are concurrent or sequential HTTP round-trips. bee-js wins zero rows.
+bee-rs leads or ties on **every group except CPU** in this snapshot. The recurring driver is the HTTP stack: reqwest+tokio pools and reuses connections more aggressively than Go's `http.DefaultClient` and far more aggressively than bee-js's axios (which defaults `keepAlive: false`). bee-go was marginally fastest on pure CPU (1.15x vs rs's 1.26x) thanks to optimized secp256k1 asm — that gap closes (and likely flips, see F8) post-1.2.0. bee-js wins zero rows.

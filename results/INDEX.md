@@ -33,10 +33,10 @@ From the latest run (see [report.md § Scoreboard](report.md#scoreboard) for the
 | bee-go | 10 | 1.32x | **1.15x** | 6.04x (Calibration), 2.35x (Pin) |
 | bee-js | 0 | 4.48x | 30.9x | 14.5x (Calibration), 2.58x (Pin) |
 
-- bee-rs leads on every group except CPU (where bee-go's secp256k1 asm wins by a small margin)
-- bee-js is **947x slower** than bee-go on ECDSA verify ([F15](../FINDINGS.md#f15-ecdsa-verify-is-even-worse-than-sign-in-bee-js--947x-vs-219x))
-- bee-go is unexpectedly **2.93x slower** on stream-dir uploads ([F19](../FINDINGS.md#f19-bee-go-is-unexpectedly-slow-on-stream-dir-upload-293x))
-- HTTP-stack pattern: reqwest pools connections better than Go's `http.DefaultClient` and far better than axios's keepAlive=false default ([F18](../FINDINGS.md#f18-pin-endpoint-round-trips-bee-rs--24x-faster-than-bee-go-and-bee-js))
+- bee-rs leads on every group except CPU in the snapshot above (which is against bee-rs 1.1.0); the bee-rs 1.2.0 secp256k1 swap (2026-05-04) flips CPU as well — sign 3.57×, verify 4.50×, identity 2.68× ([F5](../FINDINGS.md#f5-js-side-ecdsa-signing-is-221x-slower-than-bee-go-confirmed-dramatically) / [F15](../FINDINGS.md#f15-ecdsa-verify-in-bee-js-is-947x-slower-worse-than-the-sign-gap-of-219x) / [F17](../FINDINGS.md#f17-cpuidentitycreate-is-another-secp256k1-backend-revealer))
+- bee-js is **947x slower** than bee-go on ECDSA verify ([F15](../FINDINGS.md#f15-ecdsa-verify-in-bee-js-is-947x-slower-worse-than-the-sign-gap-of-219x))
+- bee-go is unexpectedly **2.93x slower** on stream-dir uploads ([F19](../FINDINGS.md#f19-bee-go-is-unexpectedly-slow-on-stream-dir-upload))
+- HTTP-stack pattern: reqwest pools connections better than Go's `http.DefaultClient` and far better than axios's keepAlive=false default ([F18](../FINDINGS.md#f18-pin-endpoint-round-trips-are-24x-faster-on-bee-rs))
 
 ## Findings index
 
@@ -46,8 +46,8 @@ Direct links to each finding in `../FINDINGS.md`:
 - [F2 — ECDSA backends are not equivalent](../FINDINGS.md#f2-ecdsa-backends-are-not-equivalent)
 - [F3 — eth-envelope ECDSA scheme is identical across clients](../FINDINGS.md#f3-all-three-implement-the-same-eth-envelope-ecdsa-scheme)
 - [F6 — bee-js keccak chunker plateau](../FINDINGS.md#f6-bee-js-keccak-chunker-plateaus)
-- [F8 — bee-rs fastest on CPU except ECDSA](../FINDINGS.md#f8-bee-rs-is-consistently-fastest-on-cpu-work-except-ecdsa)
-- [F15 — ECDSA verify in bee-js is 947x slower](../FINDINGS.md#f15-ecdsa-verify-in-bee-js-is-947x-slower-worse-than-the-sign-gap-of-219x)
+- [F8 — bee-rs fastest on CPU (ECDSA flipped in v1.2.0)](../FINDINGS.md#f8-bee-rs-is-consistently-fastest-on-cpu-work-ecdsa-flipped-in-v120)
+- [F15 — ECDSA verify in bee-js is 947x slower (bee-rs 1.2.0 ties bee-go)](../FINDINGS.md#f15-ecdsa-verify-in-bee-js-is-947x-slower-worse-than-the-sign-gap-of-219x)
 - [F16 — Mantaray lookup is essentially tied between bee-go and bee-rs](../FINDINGS.md#f16-mantaray-lookup-is-essentially-tied-between-bee-go-and-bee-rs)
 - [F17 — cpu.identity.create is another secp256k1 backend revealer](../FINDINGS.md#f17-cpuidentitycreate-is-another-secp256k1-backend-revealer)
 
@@ -64,6 +64,7 @@ Direct links to each finding in `../FINDINGS.md`:
 - [F7 — bee-js holds significantly more memory during chunking](../FINDINGS.md#f7-bee-js-holds-significantly-more-memory-during-chunking)
 - [F9 — encryption-aware offline chunking missing in all three](../FINDINGS.md#f9-encryption-aware-offline-chunking-is-missing-in-all-three-clients)
 - [F13 / F13b — SOC writes: bee-go ~70% slower than bee-rs](../FINDINGS.md#f13b-soc-writes-update-on-the-2026-05-02-unified-sweep)
+- [F13c — net.soc isn't a useful gauge of the v1.2.0 ECDSA swap](../FINDINGS.md#f13c-soc-writes-are-not-a-useful-gauge-of-the-bee-rs-120-ecdsa-swap)
 - [F14 — feed read fails 404 in same iter](../FINDINGS.md#f14-feed-read-fails-with-404-in-same-iter-as-the-write)
 - [F19 — bee-go is unexpectedly slow on stream-dir upload](../FINDINGS.md#f19-bee-go-is-unexpectedly-slow-on-stream-dir-upload)
 
